@@ -34,7 +34,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     //implementation 'org.springframework.boot:spring-boot-starter-websocket'
-    implementation 'io.r2dbc:r2dbc-postgresql:1.0.2.RELEASE'
+    //implementation 'io.r2dbc:r2dbc-postgresql:1.0.2.RELEASE'
     implementation 'org.postgresql:postgresql:42.7.3'
     implementation 'io.grpc:grpc-netty-shaded'
     implementation 'io.grpc:grpc-protobuf'

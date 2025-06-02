@@ -1,3 +1,4 @@
+/*
 package com.smwu.matchalot.web.config;
 
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration;
@@ -34,3 +35,4 @@ public class R2dbcConfig extends AbstractR2dbcConfiguration {
         );
     }
 }
+*/
