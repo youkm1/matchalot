@@ -24,14 +24,15 @@ spring:
       client:
         registration:
           google:
-            client-id: "283628099860-0ulj37lbns6csn3aeq5e03dcb40d9b8v.apps.googleusercontent.com"
-            client-secret: "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"
+            client-id: 283628099860-46e7o3f0a3r9t8neg3mp3n09kl0j5ea5.apps.googleusercontent.com
+            client-secret: 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
             scope:
               - openid
               - email
               - profile
             redirect-uri: http://localhost:8080/login/oauth2/code/google
-            client-name: Google
+            authorization-grant-type: authorization_code
+            #client-name: Google
 
 app:
   frontend:
