@@ -3,11 +3,8 @@ package com.smwu.matchalot.web.controller;
 import com.smwu.matchalot.application.service.StudyMaterialService;
 import com.smwu.matchalot.application.service.UserService;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
-import com.smwu.matchalot.domain.model.vo.Email;
-import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
-import com.smwu.matchalot.web.dto.StudyMaterialCreateRequest;
-import com.smwu.matchalot.web.dto.StudyMaterialResponse;
-import com.smwu.matchalot.web.dto.StudyMaterialUpdateRequest;
+import com.smwu.matchalot.domain.model.vo.*;
+import com.smwu.matchalot.web.dto.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +14,11 @@ import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import jakarta.validation.Valid;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/v1/api/study-materials")
+@RequestMapping("/api/v1/study-materials")
 @RequiredArgsConstructor
 public class StudyMaterialController {
 
@@ -28,28 +26,27 @@ public class StudyMaterialController {
     private final UserService userService;
 
     @PostMapping
-    public Mono<ResponseEntity<StudyMaterialResponse>> createStudyMaterial(
-            @RequestBody StudyMaterialCreateRequest request,
+    public Mono<ResponseEntity<StudyMaterialResponse>> uploadStudyMaterial(
+            @Valid @RequestBody StudyMaterialUploadRequest request,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
         String email = oauth2User.getAttribute("email");
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
-                .flatMap(user -> {
-                    if (!user.participableInMatch()) {
-                        return Mono.error(new IllegalStateException("신뢰도가 낮아 스터디 자료를 등록할 수 없습니다."));
-                    }
-                    return studyMaterialService.createStudyMaterial(
-                            user.getId(),
-                            request.title(),
-                            request.description(),
-                            request.subject(),
-                            request.difficulty(),
-                            request.fileUrl()
-                    );
+                .flatMap(user -> studyMaterialService.uploadStudyMaterial(
+                        user.getId(),
+                        request.title(),
+                        request.getSubjectVO(),
+                        request.getExamTypeVO(),
+                        request.getSemesterVO(),
+                        request.getQuestionsVO()
+                ))
+                .flatMap(studyMaterial -> {
+                    // 업로더 닉네임을 가져와서 응답 생성
+                    return userService.getUserById(studyMaterial.getUploaderId())
+                            .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname()));
                 })
-                .map(this::toStudyMaterialResponse)
                 .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
                 .onErrorReturn(IllegalArgumentException.class,
                         ResponseEntity.badRequest().build())
@@ -58,14 +55,24 @@ public class StudyMaterialController {
     }
 
     @GetMapping
-    public Flux<StudyMaterialResponse> getAllStudyMaterials(
+    public Flux<StudyMaterialSummaryResponse> getAllStudyMaterials(
             @RequestParam(required = false) String subject,
-            @RequestParam(required = false) String difficulty,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(required = false) String examType) {
 
-        return studyMaterialService.getStudyMaterials(subject, difficulty, page, size)
-                .map(this::toStudyMaterialResponse);
+        if (subject != null && examType != null) {
+            // 과목과 시험 유형으로 필터링
+            return studyMaterialService.getStudyMaterialsBySubjectAndExamType(
+                            Subject.of(subject), ExamType.of(examType))
+                    .flatMap(this::toSummaryResponse);
+        } else if (subject != null) {
+            // 과목으로만 필터링
+            return studyMaterialService.getStudyMaterialsBySubject(Subject.of(subject))
+                    .flatMap(this::toSummaryResponse);
+        } else {
+            // 모든 족보 조회
+            return studyMaterialService.getAllStudyMaterials()
+                    .flatMap(this::toSummaryResponse);
+        }
     }
 
     @GetMapping("/{materialId}")
@@ -74,51 +81,29 @@ public class StudyMaterialController {
 
         StudyMaterialId id = StudyMaterialId.of(materialId);
 
-        return studyMaterialService.getStudyMaterialById(id)
-                .map(this::toStudyMaterialResponse)
+        return studyMaterialService.getStudyMaterial(id)
+                .flatMap(studyMaterial -> {
+                    // 업로더 정보 포함해서 응답 생성
+                    return userService.getUserById(studyMaterial.getUploaderId())
+                            .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname()));
+                })
                 .map(ResponseEntity::ok)
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
+                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()))
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.badRequest().build());
     }
+
 
     @GetMapping("/my")
-    public Flux<StudyMaterialResponse> getMyStudyMaterials(
+    public Flux<StudyMaterialSummaryResponse> getMyStudyMaterials(
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
         String email = oauth2User.getAttribute("email");
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
-                .flatMapMany(user -> studyMaterialService.getStudyMaterialsByUserId(user.getId()))
-                .map(this::toStudyMaterialResponse);
-    }
-
-    @PutMapping("/{materialId}")
-    public Mono<ResponseEntity<StudyMaterialResponse>> updateStudyMaterial(
-            @PathVariable Long materialId,
-            @RequestBody StudyMaterialUpdateRequest request,
-            @AuthenticationPrincipal OAuth2User oauth2User) {
-
-        String email = oauth2User.getAttribute("email");
-        Email userEmail = Email.of(email);
-        StudyMaterialId id = StudyMaterialId.of(materialId);
-
-        return userService.getUserByEmail(userEmail)
-                .flatMap(user -> studyMaterialService.updateStudyMaterial(
-                        id,
-                        user.getId(),
-                        request.title(),
-                        request.description(),
-                        request.subject(),
-                        request.difficulty(),
-                        request.fileUrl()
-                ))
-                .map(this::toStudyMaterialResponse)
-                .map(ResponseEntity::ok)
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.badRequest().build())
-                .onErrorReturn(SecurityException.class,
-                        ResponseEntity.status(HttpStatus.FORBIDDEN).build())
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
+                .flatMapMany(user -> studyMaterialService.getMyStudyMaterials(user.getId()))
+                .flatMap(this::toSummaryResponse);
     }
 
     @DeleteMapping("/{materialId}")
@@ -132,97 +117,46 @@ public class StudyMaterialController {
 
         return userService.getUserByEmail(userEmail)
                 .flatMap(user -> studyMaterialService.deleteStudyMaterial(id, user.getId()))
-                .then(Mono.just(ResponseEntity.ok(Map.of("message", "스터디 자료가 삭제되었습니다."))))
+                .then(Mono.just(ResponseEntity.ok(Map.of("message", "족보가 삭제되었습니다."))))
                 .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.badRequest().body(Map.of("error", "잘못된 요청입니다.")))
-                .onErrorReturn(SecurityException.class,
+                        ResponseEntity.badRequest().body(Map.of("error", "족보를 찾을 수 없습니다.")))
+                .onErrorReturn(IllegalStateException.class,
                         ResponseEntity.status(HttpStatus.FORBIDDEN)
-                                .body(Map.of("error", "권한이 없습니다.")))
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound()
-                        .body(Map.of("error", "스터디 자료를 찾을 수 없습니다."))));
+                                .body(Map.of("error", "본인이 업로드한 족보만 삭제할 수 있습니다.")));
     }
 
-    @PostMapping("/{materialId}/like")
-    public Mono<ResponseEntity<Map<String, Object>>> likeStudyMaterial(
-            @PathVariable Long materialId,
-            @AuthenticationPrincipal OAuth2User oauth2User) {
-
-        String email = oauth2User.getAttribute("email");
-        Email userEmail = Email.of(email);
-        StudyMaterialId id = StudyMaterialId.of(materialId);
-
-        return userService.getUserByEmail(userEmail)
-                .flatMap(user -> studyMaterialService.likeStudyMaterial(id, user.getId()))
-                .map(likeCount -> ResponseEntity.ok(Map.of(
-                        "message", "좋아요가 추가되었습니다.",
-                        "likeCount", likeCount
-                )))
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.badRequest().body(Map.of("error", "이미 좋아요를 누른 자료입니다.")))
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound()
-                        .body(Map.of("error", "스터디 자료를 찾을 수 없습니다."))));
-    }
-
-    @DeleteMapping("/{materialId}/like")
-    public Mono<ResponseEntity<Map<String, Object>>> unlikeStudyMaterial(
-            @PathVariable Long materialId,
-            @AuthenticationPrincipal OAuth2User oauth2User) {
-
-        String email = oauth2User.getAttribute("email");
-        Email userEmail = Email.of(email);
-        StudyMaterialId id = StudyMaterialId.of(materialId);
-
-        return userService.getUserByEmail(userEmail)
-                .flatMap(user -> studyMaterialService.unlikeStudyMaterial(id, user.getId()))
-                .map(likeCount -> ResponseEntity.ok(Map.of(
-                        "message", "좋아요가 취소되었습니다.",
-                        "likeCount", likeCount
-                )))
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.badRequest().body(Map.of("error", "좋아요를 누르지 않은 자료입니다.")))
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound()
-                        .body(Map.of("error", "스터디 자료를 찾을 수 없습니다."))));
-    }
 
     @GetMapping("/subjects")
     public Mono<ResponseEntity<Map<String, Object>>> getAvailableSubjects() {
-        return studyMaterialService.getAvailableSubjects()
-                .collectList()
-                .map(subjects -> ResponseEntity.ok(Map.of(
-                        "subjects", subjects,
-                        "message", "사용 가능한 과목 목록입니다."
-                )));
-    }
-
-    @GetMapping("/popular")
-    public Flux<StudyMaterialResponse> getPopularStudyMaterials(
-            @RequestParam(defaultValue = "10") int limit) {
-
-        return studyMaterialService.getPopularStudyMaterials(limit)
-                .map(this::toStudyMaterialResponse);
-    }
-
-    @GetMapping("/recent")
-    public Flux<StudyMaterialResponse> getRecentStudyMaterials(
-            @RequestParam(defaultValue = "10") int limit) {
-
-        return studyMaterialService.getRecentStudyMaterials(limit)
-                .map(this::toStudyMaterialResponse);
-    }
-
-    private StudyMaterialResponse toStudyMaterialResponse(StudyMaterial material) {
-        return new StudyMaterialResponse(
-                material.getId() != null ? material.getId().value() : null,
-                material.getTitle(),
-                material.getDescription(),
-                material.getSubject(),
-                material.getDifficulty(),
-                material.getFileUrl(),
-                material.getLikeCount(),
-                material.getDownloadCount(),
-                material.getAuthorId().value(),
-                material.getCreatedAt(),
-                material.getUpdatedAt()
+        // 현재는 상수로 정의된 과목들을 반환
+        var subjects = java.util.List.of(
+                Subject.PROGRAMMING_LANGUAGES.name(),
+                Subject.COMPUTER_ARCHITECTURE.name()
         );
+
+        return Mono.just(ResponseEntity.ok(Map.of(
+                "subjects", subjects,
+                "message", "사용 가능한 과목 목록입니다."
+        )));
+    }
+
+
+    @GetMapping("/exam-types")
+    public Mono<ResponseEntity<Map<String, Object>>> getAvailableExamTypes() {
+        var examTypes = java.util.List.of(
+                ExamType.MIDTERM.type(),
+                ExamType.FINAL.type()
+        );
+
+        return Mono.just(ResponseEntity.ok(Map.of(
+                "examTypes", examTypes,
+                "message", "사용 가능한 시험 유형 목록입니다."
+        )));
+    }
+
+    private Mono<StudyMaterialSummaryResponse> toSummaryResponse(StudyMaterial studyMaterial) {
+        return userService.getUserById(studyMaterial.getUploaderId())
+                .map(uploader -> StudyMaterialSummaryResponse.from(studyMaterial, uploader.getNickname()))
+                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음")));
     }
 }
