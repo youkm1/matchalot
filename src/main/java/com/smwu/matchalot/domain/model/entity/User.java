@@ -32,11 +32,11 @@ public class User {
     }
 
     public User increaseeTrustScoreForGoodMatch() {
-        return new User(id, email, nickname, trustScore.increaseForGood(), createdAt);
+        return new User(id, email, nickname, trustScore.increaseMost(), createdAt);
     }
 
     public User decreaseTrustScoreForBadMatch() {
-        return new User(id, email, nickname, trustScore.decreaseForGood(), createdAt);
+        return new User(id, email, nickname, trustScore.decreaseMost(), createdAt);
     }
 
     private void validateTrustScore(TrustScore newScore) {
