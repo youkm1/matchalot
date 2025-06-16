@@ -11,11 +11,7 @@ import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 
-interface UserR2dbcRepository extends R2dbcRepository<UserEntity, Long> {
-    Mono<UserEntity> findByEmail(String email);
 
-    Mono<Boolean> existsByEmail(String email);
-}
 
 @Repository
 public class UserRepositoryImpl implements UserRepository {

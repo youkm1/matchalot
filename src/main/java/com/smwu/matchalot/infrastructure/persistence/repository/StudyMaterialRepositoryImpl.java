@@ -11,14 +11,7 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-interface StudyMaterialR2dbcRepository extends R2dbcRepository<StudyMaterialEntity, Long> {
-    Flux<StudyMaterialEntity> findBySubject(String subject);
-    Flux<StudyMaterialEntity> findBySubjectAndExamType(String subject, String examType);
-    Flux<StudyMaterialEntity> findByUploaderId(Long uploaderId);
-    Flux<StudyMaterialEntity> findBySubjectAndYearAndSeason(String subject, Integer year, String season);
-    Mono<Boolean> existsBySubjectAndExamTypeAndYearAndSeason(String subject, String examType, Integer year, String season);
-    Flux<StudyMaterialEntity> findAllByOrderByCreatedAtDesc();
-}
+
 @Repository
 @RequiredArgsConstructor
 public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
