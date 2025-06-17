@@ -9,7 +9,9 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler;
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -44,5 +46,19 @@ public class SecurityConfig {
 
         handler.setLocation(URI.create(frontendUrl + "/auth/callback"));
         return handler;
+    }
+
+    @Bean
+    public ServerAuthenticationFailureHandler authenticationFailureHandler() {
+        return (exchange, exception) -> {
+            ServerWebExchange serverWebExchange = exchange.getExchange();
+            ServerHttpResponse response = serverWebExchange.getResponse();
+            response.setStatusCode(HttpStatus.FOUND);
+
+            String redirectUrl = frontendUrl + "/login?error=auth_failed";
+            response.getHeaders().add("Location", redirectUrl);
+
+            return response.setComplete();
+        };
     }
 }
