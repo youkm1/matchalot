@@ -3,7 +3,7 @@ package com.smwu.matchalot.infrastructure.persistence.config;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
-import org.flywaydb.core.Flyway;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,16 +27,5 @@ public class DatabaseConfig  {
     private String password;
 
 
-    @Bean(initMethod = "migrate")
-    public Flyway flyway() {
-        return Flyway.configure()
-                .dataSource(
-                        "jdbc:postgresql://localhost:5432/matchalot",
-                        username,
-                        password
-                )
-                .locations("classpath:db/migration")
-                .baselineOnMigrate(true)
-                .load();
-    }
+
 }
