@@ -3,14 +3,17 @@ package com.smwu.matchalot.web.controller;
 import com.smwu.matchalot.application.service.UserService;
 import com.smwu.matchalot.domain.model.entity.User;
 import com.smwu.matchalot.domain.model.vo.Email;
+import com.smwu.matchalot.web.config.JwtTokenProvider;
 import com.smwu.matchalot.web.dto.LoginResponse;
 import com.smwu.matchalot.web.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -22,11 +25,8 @@ import java.util.Map;
 public class AuthController {
 
     private final UserService userService;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    /**
-     * OAuth2 인증 완료 후 사용자 상태 확인
-     * 기존 사용자인지 신규 사용자인지 판단하여 적절한 엔드포인트로 안내
-     */
     @GetMapping("/callback")
     public Mono<Map<String, Object>> checkUserStatus(@AuthenticationPrincipal OAuth2User oauth2User) {
         if (oauth2User == null) {
@@ -85,45 +85,53 @@ public class AuthController {
                 });
     }
 
-    /**
-     * 기존 사용자 로그인
-     */
     @PostMapping("/login")
-    public Mono<LoginResponse> login(@AuthenticationPrincipal OAuth2User oauth2User) {
-        if (oauth2User == null) {
-            log.error("OAuth2User가 null입니다.");
-            return Mono.just(LoginResponse.fail("인증되지 않은 사용자입니다."));
-        }
+    public Mono<ResponseEntity<LoginResponse>> login(
+            @AuthenticationPrincipal OAuth2User oauth2User,
+            ServerWebExchange exchange) {
 
         String email = oauth2User.getAttribute("email");
-        log.info("로그인 시도: {}", email);
-
+        String name = oauth2User.getAttribute("name");
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
                 .map(user -> {
-                    log.info("로그인 성공: {}", user.getEmail().value());
-                    return LoginResponse.success(
-                            generateJwtToken(user),
+                    // 🚀 진짜 JWT 토큰 생성
+                    String token = jwtTokenProvider.createToken(
+                            user.getId().value().toString(),
+                            user.getEmail().value(),
+                            user.getNickname()
+                    );
+
+                    // 🍪 쿠키 설정
+                    setSecureCookie(exchange.getResponse(), "auth-token", token);
+
+                    LoginResponse response = LoginResponse.success(
+                            null, // 쿠키로만 전달
                             toUserResponse(user),
                             false // 기존 사용자
                     );
+                    return ResponseEntity.ok(response);
                 })
-                .switchIfEmpty(Mono.just(LoginResponse.fail("사용자를 찾을 수 없습니다. 먼저 회원가입을 진행해주세요.")))
                 .onErrorResume(error -> {
-                    log.error("로그인 처리 중 오류", error);
-                    return Mono.just(LoginResponse.fail("로그인 처리 중 오류가 발생했습니다."));
+                    log.error("로그인 중 오류", error);
+                    return Mono.just(
+                            ResponseEntity.badRequest().body(
+                                    LoginResponse.fail("로그인 중 오류가 발생했습니다.")
+                            )
+                    );
                 });
     }
 
-    /**
-     * 신규 사용자 회원가입
-     */
     @PostMapping("/signup")
-    public Mono<LoginResponse> signup(@AuthenticationPrincipal OAuth2User oauth2User) {
+    public Mono<ResponseEntity<LoginResponse>> signup(
+            @AuthenticationPrincipal OAuth2User oauth2User,
+            ServerWebExchange exchange) { // 🔧 추가!
+
         if (oauth2User == null) {
             log.error("OAuth2User가 null입니다.");
-            return Mono.just(LoginResponse.fail("인증되지 않은 사용자입니다."));
+            return Mono.just(ResponseEntity.badRequest()
+                    .body(LoginResponse.fail("인증되지 않은 사용자입니다.")));
         }
 
         String email = oauth2User.getAttribute("email");
@@ -139,19 +147,40 @@ public class AuthController {
                         log.info("이미 가입된 사용자 발견: {}", email);
                         // 기존 사용자로 처리하고 로그인 진행
                         return userService.getUserByEmail(userEmail)
-                                .map(user -> LoginResponse.success(
-                                        generateJwtToken(user),
-                                        toUserResponse(user),
-                                        false // 기존 사용자
-                                ));
+                                .map(user -> {
+                                    // 🚀 진짜 JWT 토큰 생성
+                                    String token = jwtTokenProvider.createToken(
+                                            user.getId().value().toString(),
+                                            user.getEmail().value(),
+                                            user.getNickname()
+                                    );
+
+                                    setSecureCookie(exchange.getResponse(), "auth-token", token);
+
+                                    return LoginResponse.success(
+                                            null,
+                                            toUserResponse(user),
+                                            false // 기존 사용자
+                                    );
+                                });
                     }
 
                     // 신규 사용자 생성
                     return userService.createUser(userEmail, name)
                             .map(newUser -> {
                                 log.info("회원가입 성공: {}", newUser.getEmail().value());
+
+                                // 🚀 진짜 JWT 토큰 생성
+                                String token = jwtTokenProvider.createToken(
+                                        newUser.getId().value().toString(),
+                                        newUser.getEmail().value(),
+                                        newUser.getNickname()
+                                );
+
+                                setSecureCookie(exchange.getResponse(), "auth-token", token);
+
                                 return LoginResponse.success(
-                                        generateJwtToken(newUser),
+                                        null,
                                         toUserResponse(newUser),
                                         true // 신규 사용자
                                 );
@@ -159,24 +188,33 @@ public class AuthController {
                             .onErrorResume(org.springframework.dao.DuplicateKeyException.class, ex -> {
                                 log.warn("중복 키 에러, 기존 사용자로 처리: {}", email);
                                 return userService.getUserByEmail(userEmail)
-                                        .map(user -> LoginResponse.success(
-                                                generateJwtToken(user),
-                                                toUserResponse(user),
-                                                false
-                                        ));
+                                        .map(user -> {
+                                            String token = jwtTokenProvider.createToken(
+                                                    user.getId().value().toString(),
+                                                    user.getEmail().value(),
+                                                    user.getNickname()
+                                            );
+
+                                            setSecureCookie(exchange.getResponse(), "auth-token", token);
+
+                                            return LoginResponse.success(
+                                                    null,
+                                                    toUserResponse(user),
+                                                    false
+                                            );
+                                        });
                             });
                 })
+                .map(ResponseEntity::ok) // 🔧 ResponseEntity로 감싸기
                 .onErrorResume(error -> {
                     log.error("회원가입 처리 중 오류", error);
-                    return Mono.just(LoginResponse.fail("회원가입 처리 중 오류가 발생했습니다."));
+                    return Mono.just(ResponseEntity.badRequest()
+                            .body(LoginResponse.fail("회원가입 처리 중 오류가 발생했습니다.")));
                 });
     }
 
-    /**
-     * 현재 로그인된 사용자 정보 조회
-     */
     @GetMapping("/me")
-    public Mono<UserResponse> getCurrentUser(@AuthenticationPrincipal OAuth2User oauth2User) {
+    public Mono<UserResponse> getCurrentUser(@AuthenticationPrincipal OAuth2User oauth2User) { // 🔧 반환 타입 수정
         if (oauth2User == null) {
             return Mono.error(new IllegalStateException("인증되지 않은 사용자입니다."));
         }
@@ -191,24 +229,35 @@ public class AuthController {
                 .switchIfEmpty(Mono.error(new IllegalStateException("사용자를 찾을 수 없습니다.")));
     }
 
-    /**
-     * 로그아웃 처리
-     */
     @PostMapping("/logout")
-    public Mono<ResponseEntity<Map<String, Object>>> logout() {
+    public Mono<ResponseEntity<Map<String, Object>>> logout(ServerWebExchange exchange) { // 🔧 파라미터 추가
         log.info("로그아웃 요청 처리");
 
+        // 🍪 쿠키 삭제
+        deleteSecureCookie(exchange.getResponse(), "auth-token");
+
         Map<String, Object> response = Map.of(
-                "message", "로그아웃 성공",
-                "action", "클라이언트에서 토큰을 삭제하세요"
+                "message", "로그아웃 성공"
         );
         return Mono.just(ResponseEntity.ok(response));
     }
 
-    // === Private Helper Methods ===
 
-    private String generateJwtToken(User user) {
-        return "jwt-token-" + user.getId().value();
+    private void setSecureCookie(ServerHttpResponse response, String name, String value) {
+        String cookieValue = String.format(
+                "%s=%s; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/",
+                name, value
+        );
+        response.getHeaders().add("Set-Cookie", cookieValue);
+    }
+
+
+    private void deleteSecureCookie(ServerHttpResponse response, String name) {
+        String cookieValue = String.format(
+                "%s=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/",
+                name
+        );
+        response.getHeaders().add("Set-Cookie", cookieValue);
     }
 
     private UserResponse toUserResponse(User user) {
