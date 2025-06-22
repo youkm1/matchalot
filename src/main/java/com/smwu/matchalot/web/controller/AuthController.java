@@ -11,13 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.io.Serializable;
 import java.util.Map;
 
 @RestController
@@ -175,10 +176,7 @@ public class AuthController {
                 });
     }
 
-    /**
-     * 현재 로그인된 사용자 정보 조회
-     * JWT 토큰 기반으로 조회
-     */
+
     @GetMapping("/me")
     public Mono<UserResponse> getCurrentUser(ServerWebExchange exchange) {
         // 쿠키에서 토큰 추출
@@ -199,23 +197,99 @@ public class AuthController {
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증 토큰이 없습니다.")));
     }
 
-    /**
-     * 로그아웃
-     */
-    @PostMapping("/logout")
-    public Mono<ResponseEntity<Map<String, Object>>> logout(ServerWebExchange exchange) {
-        log.info("로그아웃 요청 처리");
 
-        // 토큰 쿠키 삭제
-        deleteSecureCookie(exchange.getResponse(), "auth-token");
+    @PostMapping("/logout")
+    public Mono<ResponseEntity<Map<String, String>>> logout(ServerWebExchange exchange) {
+        log.info("=== 로그아웃 요청 처리 시작 ===");
+
+        // 현재 요청의 쿠키 상태 확인
+        var request = exchange.getRequest();
+        var cookies = request.getCookies();
+
+        log.info("🍪 로그아웃 전 모든 쿠키: {}", cookies.keySet());
+
+        // auth-token 쿠키 확인
+        var authTokenCookies = cookies.get("auth-token");
+        if (authTokenCookies != null && !authTokenCookies.isEmpty()) {
+            String tokenValue = authTokenCookies.get(0).getValue();
+            log.info("🔑 auth-token 존재: {}...", tokenValue.substring(0, Math.min(20, tokenValue.length())));
+
+            // JWT 토큰 정보 로깅
+            if (jwtTokenProvider.validateToken(tokenValue)) {
+                jwtTokenProvider.logTokenInfo(tokenValue);
+            }
+        } else {
+            log.warn("⚠️ auth-token 쿠키가 없습니다!");
+        }
+
+        // 여러 방식으로 auth-token 쿠키 삭제 시도
+        ServerHttpResponse response = exchange.getResponse();
+
+        // 방법 1: 기본 경로
+        deleteAuthTokenCookie(response, "/");
+
+        // 방법 2: 다양한 경로들
+        String[] paths = {"/", "/api", "/oauth2", "/auth"};
+        for (String path : paths) {
+            deleteAuthTokenCookie(response, path);
+        }
+
+        // 방법 3: 도메인별로도 시도
+        String[] domains = {"localhost", ".localhost", "127.0.0.1"};
+        for (String domain : domains) {
+            deleteAuthTokenCookieWithDomain(response, "/", domain);
+        }
 
         return exchange.getSession()
                 .flatMap(webSession -> {
+                    log.info("📋 세션 ID: {}", webSession.getId());
                     webSession.invalidate();
-                    return Mono.just(ResponseEntity.ok(Map.of("message", "로그아웃 성공")));
-                });
+                    log.info("✅ 세션 무효화 완료");
+
+                    return Mono.just(ResponseEntity.ok(Map.of(
+                            "message", "로그아웃 성공",
+                            "status", "success",
+                            "timestamp", String.valueOf(System.currentTimeMillis())
+                    )));
+                })
+                .contextWrite(ReactiveSecurityContextHolder.clearContext())
+                .doOnSuccess(result -> log.info("=== 로그아웃 처리 완료 ==="));
     }
 
+    private void deleteAuthTokenCookie(ServerHttpResponse response, String path) {
+        // HttpOnly 쿠키 삭제
+        String cookieValue1 = String.format(
+                "auth-token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s",
+                path
+        );
+        response.getHeaders().add("Set-Cookie", cookieValue1);
+        log.info("🗑️ HttpOnly 쿠키 삭제 설정: Path={}", path);
+
+        // 일반 쿠키로도 삭제 시도 (HttpOnly 없이)
+        String cookieValue2 = String.format(
+                "auth-token=; Max-Age=0; Path=%s",
+                path
+        );
+        response.getHeaders().add("Set-Cookie", cookieValue2);
+        log.info("🗑️ 일반 쿠키 삭제 설정: Path={}", path);
+
+        // Secure 없이도 시도 (개발환경 대응)
+        String cookieValue3 = String.format(
+                "auth-token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s",
+                path
+        );
+        response.getHeaders().add("Set-Cookie", cookieValue3);
+        log.info("🗑️ Secure 없는 쿠키 삭제 설정: Path={}", path);
+    }
+
+    private void deleteAuthTokenCookieWithDomain(ServerHttpResponse response, String path, String domain) {
+        String cookieValue = String.format(
+                "auth-token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s; Domain=%s",
+                path, domain
+        );
+        response.getHeaders().add("Set-Cookie", cookieValue);
+        log.info("🗑️ 도메인 포함 쿠키 삭제: Path={}, Domain={}", path, domain);
+    }
     private Mono<String> extractTokenFromCookie(ServerWebExchange exchange) {
         return Mono.fromCallable(() -> {
             var cookies = exchange.getRequest().getCookies().get("auth-token");
@@ -235,11 +309,15 @@ public class AuthController {
     }
 
     private void deleteSecureCookie(ServerHttpResponse response, String name) {
-        String cookieValue = String.format(
-                "%s=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/",
-                name
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue);
+        String[] paths = {"/", "/api", "/oauth2"};
+
+        for (String path : paths) {
+            String cookieValue = String.format(
+                    "%s=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s",
+                    name, path
+            );
+            response.getHeaders().add("Set-Cookie", cookieValue);
+        }
     }
 
     private UserResponse toUserResponse(User user) {

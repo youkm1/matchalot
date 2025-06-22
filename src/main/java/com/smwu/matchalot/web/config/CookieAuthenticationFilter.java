@@ -1,6 +1,5 @@
 package com.smwu.matchalot.web.config;
 
-import com.smwu.matchalot.web.config.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpCookie;
@@ -8,7 +7,6 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
@@ -28,6 +26,13 @@ public class CookieAuthenticationFilter implements WebFilter {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
+        String path = request.getPath().value();
+
+        // 🔧 로그아웃 경로는 인증 필터 스킵
+        if ("/api/v1/auth/logout".equals(path)) {
+            log.debug("로그아웃 경로 - 인증 필터 스킵");
+            return chain.filter(exchange);
+        }
 
         // 1. Authorization 헤더에서 토큰 확인 (기존 방식 호환)
         String headerToken = extractTokenFromHeader(request);

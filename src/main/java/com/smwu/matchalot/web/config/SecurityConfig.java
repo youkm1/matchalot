@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -20,6 +21,7 @@ import org.springframework.security.web.server.util.matcher.ServerWebExchangeMat
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -68,6 +70,8 @@ public class SecurityConfig {
                     config.setMaxAge(3600L);
                     return config;
                 }))
+                //웹플럭스에는 sessionsCreationPolicy가 없음
+
 
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/api/v1/auth/**").permitAll()
@@ -84,6 +88,17 @@ public class SecurityConfig {
                         .authenticationSuccessHandler(oauth2SuccessHandler)
                         .authenticationFailureHandler(authenticationFailureHandler())
                 )
+                .logout(logout -> logout.logoutUrl("/api/v1/auth/logout")
+                        .logoutSuccessHandler(((exchange, authentication) -> {
+                            var response = exchange.getExchange().getResponse();
+
+                            deleteCookie(response, "auth-token");
+                            deleteCookie(response, "SESSION");
+                            deleteCookie(response, "XSRF-TOKEN");
+
+                            response.setStatusCode(HttpStatus.OK);
+                            return response.setComplete();
+                        })))
 
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieServerCsrfTokenRepository.withHttpOnlyFalse())
@@ -117,5 +132,17 @@ public class SecurityConfig {
 
             return response.setComplete();
         };
+    }
+
+    private void deleteCookie(org.springframework.http.server.reactive.ServerHttpResponse response, String cookieName) {
+        String[] paths = {"/", "/api", "/oauth2"};
+
+        for (String path : paths) {
+            String cookieValue = String.format(
+                    "%s=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s",
+                    cookieName, path
+            );
+            response.getHeaders().add("Set-Cookie", cookieValue);
+        }
     }
 }
