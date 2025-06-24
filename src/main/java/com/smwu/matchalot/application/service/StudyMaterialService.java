@@ -5,12 +5,14 @@ import com.smwu.matchalot.domain.model.entity.User;
 import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.domain.reposiotry.StudyMaterialRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StudyMaterialService {
 
     private final StudyMaterialRepository studyMaterialRepository;
@@ -23,7 +25,9 @@ public class StudyMaterialService {
                                                    Semester semester,
                                                    Questions questions) {
         return userService.getUserById(uploaderId)
+                .doOnNext(user -> log.info("족보 업로드 시도: 이용자={}, 닉네임={}", user.getId().value(), user.getNickname()))
                 .filter(User::participableInMatch)  // 신뢰도 체크 (0점 이상)
+                .doOnNext(user -> log.info("휴 신뢰도 패스"))
                 .switchIfEmpty(Mono.error(new IllegalStateException("신뢰도가 부족하여 족보를 업로드할 수 없습니다")))
                 .then(validateUploadRequest(title, questions))
                 .flatMap(ignored -> {
@@ -31,10 +35,11 @@ public class StudyMaterialService {
                             uploaderId, title, subject, examType, semester, questions
                     );
 
-
-
                     return studyMaterialRepository.save(studyMaterial);
-                });
+                })
+                .doOnSuccess(saved -> log.info("저장 성공 ID={}",saved.getId()))
+                .doOnError(error -> log.error("저장 실패: 오류={}", error.getMessage()));
+
 
     }
     public Flux<StudyMaterial> getAllStudyMaterials() {

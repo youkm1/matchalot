@@ -43,6 +43,17 @@ public class SecurityConfig {
     private final CookieAuthenticationFilter cookieAuthenticationFilter;
 
     @Bean
+    public CookieServerCsrfTokenRepository csrfTokenRepository() {
+        CookieServerCsrfTokenRepository repository = CookieServerCsrfTokenRepository.withHttpOnlyFalse();
+
+
+        repository.setCookieName("XSRF-TOKEN");
+        repository.setHeaderName("X-XSRF-TOKEN");
+        repository.setParameterName("_csrf");
+
+        return repository;
+    }
+    @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
                 .cors(cors -> cors.configurationSource(exchange -> {
@@ -62,8 +73,9 @@ public class SecurityConfig {
                     config.setExposedHeaders(Arrays.asList(
                             "Access-Control-Allow-Origin",
                             "Access-Control-Allow-Credentials",
-                            "X-CSRF-Token", // 추가!
-                            "Set-Cookie"    // 추가!
+                            "X-CSRF-Token",
+                            "X-XSRF-TOKEN",
+                            "Set-Cookie"
                     ));
 
                     config.setAllowCredentials(true);
@@ -74,6 +86,8 @@ public class SecurityConfig {
 
 
                 .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers("/api/v1/auth/csrf-token").permitAll()
+                        .pathMatchers("/api/v1/auth/refresh-csrf").permitAll()
                         .pathMatchers("/api/v1/auth/**").permitAll()
                         .pathMatchers("/login", "/oauth2/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
@@ -88,25 +102,20 @@ public class SecurityConfig {
                         .authenticationSuccessHandler(oauth2SuccessHandler)
                         .authenticationFailureHandler(authenticationFailureHandler())
                 )
-                .logout(logout -> logout.logoutUrl("/api/v1/auth/logout")
-                        .logoutSuccessHandler(((exchange, authentication) -> {
-                            var response = exchange.getExchange().getResponse();
 
-                            deleteCookie(response, "auth-token");
-                            deleteCookie(response, "SESSION");
-                            deleteCookie(response, "XSRF-TOKEN");
-
-                            response.setStatusCode(HttpStatus.OK);
-                            return response.setComplete();
-                        })))
 
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieServerCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRepository(csrfTokenRepository())
                         .requireCsrfProtectionMatcher(ServerWebExchangeMatchers.matchers(
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.DELETE,"/api/**"),
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST,"/api/**"),
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.PATCH,"/api/**"),
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.PUT,"/api/**")
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/v1/study-materials/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.PUT, "/api/v1/study-materials/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.DELETE, "/api/v1/study-materials/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.PATCH, "/api/v1/study-materials/**"),
+
+                                // 다른 보호 대상 API들
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/v1/matches/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.PUT, "/api/v1/matches/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.DELETE, "/api/v1/matches/**")
                         ))
                 )
                 .build();

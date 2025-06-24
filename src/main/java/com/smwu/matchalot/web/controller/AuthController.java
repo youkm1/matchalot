@@ -9,17 +9,24 @@ import com.smwu.matchalot.web.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.web.server.csrf.CsrfToken;
+
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.io.Serializable;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -30,10 +37,7 @@ public class AuthController {
     private final UserService userService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    /**
-     * OAuth2 인증 후 사용자 상태 확인
-     * Success Handler에서 리다이렉트된 요청을 처리
-     */
+
     @GetMapping("/callback")
     public Mono<Map<String, Object>> checkUserStatus(ServerWebExchange exchange) {
         return exchange.getSession()
@@ -256,35 +260,56 @@ public class AuthController {
                 .doOnSuccess(result -> log.info("=== 로그아웃 처리 완료 ==="));
     }
 
+    @GetMapping("/csrf-token")
+    public Mono<ResponseEntity<Map<String, String>>> getCsrf(@ModelAttribute Mono<CsrfToken> csrfToken) {
+        log.info("csrf token request received");
+        return csrfToken
+                .map(token -> {
+                    log.info(" CSRF 토큰: {}...",
+                            token.getToken());
+
+                    Map<String, String> response = new HashMap<>();
+                    response.put("token", token.getToken());
+                    response.put("headerName", token.getHeaderName());
+                    response.put("parameterName", token.getParameterName());
+
+                    return ResponseEntity.ok(response);
+                })
+                .switchIfEmpty(Mono.fromCallable(() -> {
+                    log.warn("⚠️ CSRF 토큰을 찾을 수 없음");
+                    Map<String, String> response = new HashMap<>();
+                    response.put("error", "CSRF token not available");
+                    return ResponseEntity.ok(response);
+                }));
+    }
     private void deleteAuthTokenCookie(ServerHttpResponse response, String path) {
-        // HttpOnly 쿠키 삭제
+        // ✅ 원본과 정확히 일치하는 설정으로 삭제
         String cookieValue1 = String.format(
-                "auth-token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s",
-                path
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue1);
-        log.info("🗑️ HttpOnly 쿠키 삭제 설정: Path={}", path);
-
-        // 일반 쿠키로도 삭제 시도 (HttpOnly 없이)
-        String cookieValue2 = String.format(
-                "auth-token=; Max-Age=0; Path=%s",
-                path
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue2);
-        log.info("🗑️ 일반 쿠키 삭제 설정: Path={}", path);
-
-        // Secure 없이도 시도 (개발환경 대응)
-        String cookieValue3 = String.format(
                 "auth-token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s",
                 path
         );
+        response.getHeaders().add("Set-Cookie", cookieValue1);
+
+        // ✅ 혹시 모를 경우를 대비한 Secure 없는 버전
+        String cookieValue2 = String.format(
+                "auth-token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s",
+                path
+        );
+        response.getHeaders().add("Set-Cookie", cookieValue2);
+
+        // ✅ 일반 쿠키도 삭제
+        String cookieValue3 = String.format(
+                "auth-token=; Max-Age=0; Path=%s",
+                path
+        );
         response.getHeaders().add("Set-Cookie", cookieValue3);
-        log.info("🗑️ Secure 없는 쿠키 삭제 설정: Path={}", path);
+
+        log.info("🗑️ 모든 방식으로 쿠키 삭제 시도: Path={}", path);
     }
 
     private void deleteAuthTokenCookieWithDomain(ServerHttpResponse response, String path, String domain) {
         String cookieValue = String.format(
-                "auth-token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s; Domain=%s",
+                "auth-token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s; Domain=%s",
                 path, domain
         );
         response.getHeaders().add("Set-Cookie", cookieValue);
@@ -302,7 +327,7 @@ public class AuthController {
 
     private void setSecureCookie(ServerHttpResponse response, String name, String value) {
         String cookieValue = String.format(
-                "%s=%s; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/",
+                "%s=%s; HttpOnly; SameSite=Strict; Max-Age=604800; Path=/",
                 name, value
         );
         response.getHeaders().add("Set-Cookie", cookieValue);
@@ -313,7 +338,7 @@ public class AuthController {
 
         for (String path : paths) {
             String cookieValue = String.format(
-                    "%s=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s",
+                    "%s=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s",
                     name, path
             );
             response.getHeaders().add("Set-Cookie", cookieValue);
@@ -329,4 +354,5 @@ public class AuthController {
                 user.getCreatedAt()
         );
     }
+
 }

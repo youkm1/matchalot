@@ -6,7 +6,11 @@ import org.springframework.http.HttpCookie;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
@@ -15,6 +19,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -28,7 +33,7 @@ public class CookieAuthenticationFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        // 🔧 로그아웃 경로는 인증 필터 스킵
+
         if ("/api/v1/auth/logout".equals(path)) {
             log.debug("로그아웃 경로 - 인증 필터 스킵");
             return chain.filter(exchange);
@@ -47,13 +52,28 @@ public class CookieAuthenticationFilter implements WebFilter {
             try {
                 String userId = jwtTokenProvider.getUserIdFromToken(token);
                 String email = jwtTokenProvider.getEmail(token);
+                String nickname = jwtTokenProvider.getNickname(token);
 
-                log.debug("인증 성공: userId={}, email={}, source={}",
-                        userId, email, headerToken != null ? "header" : "cookie");
+                log.debug("인증 성공: userId={}, email={}, nickname={}, source={}",
+                        userId, email, nickname, headerToken != null ? "header" : "cookie");
 
-                // SecurityContext에 인증 정보 설정
-                Authentication auth = new UsernamePasswordAuthenticationToken(
-                        userId, null, Collections.emptyList());
+                Map<String, Object> attributes = Map.of(
+                        "email", email,
+                        "name", nickname,
+                        "id", userId
+                );
+                //<GrantedAuthority>로 역할 기반 sooktin
+                OAuth2User oAuth2User = new DefaultOAuth2User(
+                        Collections.<GrantedAuthority>emptyList(),
+                        attributes,
+                        "email"
+                );
+                // OAuth2AuthenticationToken -> 신분이확인된사람
+                OAuth2AuthenticationToken auth = new OAuth2AuthenticationToken(
+                        oAuth2User,
+                        Collections.<GrantedAuthority>emptyList(),
+                        "google"
+                );
 
                 return chain.filter(exchange)
                         .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
