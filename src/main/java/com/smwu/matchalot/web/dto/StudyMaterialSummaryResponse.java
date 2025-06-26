@@ -12,9 +12,10 @@ public record StudyMaterialSummaryResponse(
         String title,
         Integer questionCount,
         String uploaderNickname,
+        Integer uploaderTrustScore,
         LocalDateTime createdAt
 ) {
-    public static StudyMaterialSummaryResponse from(StudyMaterial studyMaterial, String uploaderNickname) {
+    public static StudyMaterialSummaryResponse from(StudyMaterial studyMaterial, String uploaderNickname, Integer trustScore) {
         return new StudyMaterialSummaryResponse(
                 studyMaterial.getId().value(),
                 studyMaterial.getSubject().name(),
@@ -23,6 +24,7 @@ public record StudyMaterialSummaryResponse(
                 studyMaterial.getTitle(),
                 studyMaterial.getQuestionCount(),
                 uploaderNickname,
+                trustScore,
                 studyMaterial.getCreatedAt()
         );
     }

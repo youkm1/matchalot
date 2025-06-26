@@ -56,8 +56,9 @@ public class StudyMaterialController {
 
     @GetMapping
     public Flux<StudyMaterialSummaryResponse> getAllStudyMaterials(
-            @RequestParam(required = false) String subject,
-            @RequestParam(required = false) String examType) {
+
+            @RequestParam(value = "subject", required = false) String subject,
+            @RequestParam(value = "examType", required = false) String examType) {
 
         if (subject != null && examType != null) {
             // 과목과 시험 유형으로 필터링
@@ -156,7 +157,10 @@ public class StudyMaterialController {
 
     private Mono<StudyMaterialSummaryResponse> toSummaryResponse(StudyMaterial studyMaterial) {
         return userService.getUserById(studyMaterial.getUploaderId())
-                .map(uploader -> StudyMaterialSummaryResponse.from(studyMaterial, uploader.getNickname()))
-                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음")));
+                .map(uploader -> StudyMaterialSummaryResponse.from(
+                        studyMaterial,
+                        uploader.getNickname(),
+                        uploader.getTrustScore().value()))
+                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음",0)));
     }
 }

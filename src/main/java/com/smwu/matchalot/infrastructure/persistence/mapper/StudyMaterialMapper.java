@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.infrastructure.persistence.StudyMaterialEntity;
+import io.r2dbc.postgresql.codec.Json;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,8 @@ public class StudyMaterialMapper {
     public StudyMaterial toDomain(StudyMaterialEntity entity) {
         try {
             // JSON을 Questions 객체로 변환
-            QuestionDto[] questionDtos = objectMapper.readValue(entity.getQuestionsJson(), QuestionDto[].class);
+            String questionsJsonString = entity.getQuestionsJson().asString();
+            QuestionDto[] questionDtos = objectMapper.readValue(questionsJsonString, QuestionDto[].class);
             List<Question> questionList = java.util.Arrays.stream(questionDtos)
                     .map(dto -> Question.of(dto.number(), dto.content(), dto.answer(), dto.description()))
                     .toList();
@@ -43,7 +45,8 @@ public class StudyMaterialMapper {
         try {
             StudyMaterialEntity entity = new StudyMaterialEntity();
 
-            if (domain.getId() != null) {
+            //id 처리 수정: 실제 값이 있는것도확인후설정
+            if (domain.getId() != null && domain.getId().value() != null) {
                 entity.setId(domain.getId().value());
             }
             entity.setUploaderId(domain.getUploaderId().value());
@@ -58,7 +61,8 @@ public class StudyMaterialMapper {
             List<QuestionDto> questionDtos = domain.getAllQuestions().stream()
                     .map(q -> new QuestionDto(q.number(), q.content(), q.answer(), q.explanation()))
                     .toList();
-            entity.setQuestionsJson(objectMapper.writeValueAsString(questionDtos));
+            String questionsJsonString = objectMapper.writeValueAsString(questionDtos);
+            entity.setQuestionsJson(Json.of(questionsJsonString));
 
             entity.setCreatedAt(domain.getCreatedAt());
 

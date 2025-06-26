@@ -6,6 +6,7 @@ import com.smwu.matchalot.domain.reposiotry.StudyMaterialRepository;
 import com.smwu.matchalot.infrastructure.persistence.StudyMaterialEntity;
 import com.smwu.matchalot.infrastructure.persistence.mapper.StudyMaterialMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
@@ -13,16 +14,37 @@ import reactor.core.publisher.Mono;
 
 
 @Repository
+@Slf4j
 @RequiredArgsConstructor
 public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
     private final StudyMaterialR2dbcRepository r2dbcRepository;
     private final StudyMaterialMapper mapper;
     @Override
     public Mono<StudyMaterial> save(StudyMaterial studyMaterial) {
+        log.info("입력 도메인: title={}, subject={}, id={}",
+                studyMaterial.getTitle(),
+                studyMaterial.getSubject().name(),
+                studyMaterial.getId());
+
         StudyMaterialEntity entity = mapper.toEntity(studyMaterial);
-        entity.onCreate();
+
+        log.info("변환된 엔티티: id={}, title={}, uploaderId={}, questionsJson 길이={}",
+                entity.getId(),
+                entity.getTitle(),
+                entity.getUploaderId(),
+                entity.getQuestionsJson() != null ? entity.getQuestionsJson().asString() : "null");
+
+        //entity.onCreate();
+
+        log.info("onCreate 후: createdAt={}, updatedAt={}", entity.getCreatedAt(), entity.getUpdatedAt());
+
+        if (studyMaterial.getId() != null) {
+            entity.setId(studyMaterial.getId().value());
+        }
         return r2dbcRepository.save(entity)
                 .map(mapper::toDomain);
+
+
     }
 
     @Override

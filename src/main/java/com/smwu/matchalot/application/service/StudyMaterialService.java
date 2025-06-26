@@ -7,6 +7,7 @@ import com.smwu.matchalot.domain.reposiotry.StudyMaterialRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -18,6 +19,7 @@ public class StudyMaterialService {
     private final StudyMaterialRepository studyMaterialRepository;
     private final UserService userService;
 
+    @Transactional
     public Mono<StudyMaterial> uploadStudyMaterial(UserId uploaderId,
                                                    String title,
                                                    Subject subject,
@@ -26,21 +28,16 @@ public class StudyMaterialService {
                                                    Questions questions) {
         return userService.getUserById(uploaderId)
                 .doOnNext(user -> log.info("족보 업로드 시도: 이용자={}, 닉네임={}", user.getId().value(), user.getNickname()))
-                .filter(User::participableInMatch)  // 신뢰도 체크 (0점 이상)
-                .doOnNext(user -> log.info("휴 신뢰도 패스"))
+                .filter(User::participableInMatch)
                 .switchIfEmpty(Mono.error(new IllegalStateException("신뢰도가 부족하여 족보를 업로드할 수 없습니다")))
-                .then(validateUploadRequest(title, questions))
-                .flatMap(ignored -> {
+                .flatMap(user -> {
                     StudyMaterial studyMaterial = new StudyMaterial(
                             uploaderId, title, subject, examType, semester, questions
                     );
-
                     return studyMaterialRepository.save(studyMaterial);
                 })
-                .doOnSuccess(saved -> log.info("저장 성공 ID={}",saved.getId()))
+                .doOnSuccess(saved -> log.info("저장 성공 ID={}", saved != null && saved.getId() != null ? saved.getId().value() : "null"))
                 .doOnError(error -> log.error("저장 실패: 오류={}", error.getMessage()));
-
-
     }
     public Flux<StudyMaterial> getAllStudyMaterials() {
         return studyMaterialRepository.findAll();
@@ -59,6 +56,9 @@ public class StudyMaterialService {
     }
 
     public Mono<StudyMaterial> getStudyMaterial(StudyMaterialId id) {
+        if (id == null || id.value() == null) {
+            return Mono.error(new IllegalArgumentException("유효하지 않은 족보의 ID"));
+        }
         return studyMaterialRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")));
     }
@@ -73,14 +73,6 @@ public class StudyMaterialService {
                     return studyMaterialRepository.deleteById(id);
                 });
     }
-    private Mono<Void> validateUploadRequest(String title, Questions questions) {
-        if (title == null || title.trim().isEmpty()) {
-            return Mono.error(new IllegalArgumentException("제목은 필수입니다"));
-        }
-        if (questions == null) {
-            return Mono.error(new IllegalArgumentException("문제는 필수입니다"));
-        }
-        return Mono.empty();
-    }
+
 
 }

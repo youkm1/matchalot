@@ -3,6 +3,7 @@ package com.smwu.matchalot.domain.model.entity;
 import com.smwu.matchalot.domain.model.vo.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,14 +11,14 @@ import java.util.List;
 @AllArgsConstructor
 @Getter
 public class StudyMaterial {
-    private final StudyMaterialId id;
-    private final UserId uploaderId;
-    private final String title;
-    private final Subject subject;
-    private final ExamType examType;
-    private final Semester semester;
-    private final Questions questions;
-    private final LocalDateTime createdAt;
+    private StudyMaterialId id;
+    private  UserId uploaderId;
+    private  String title;
+    private  Subject subject;
+    private  ExamType examType;
+    private  Semester semester;
+    private  Questions questions;
+    private  LocalDateTime createdAt;
 
     public StudyMaterial(UserId uploaderId, String title, Subject subject, ExamType examType, Semester semester, Questions questions) {
         this(null, uploaderId, title, subject, examType, semester, questions, LocalDateTime.now());
@@ -39,6 +40,15 @@ public class StudyMaterial {
                 getQuestionCount());
     }
 
+
+    public StudyMaterialId getId() {
+        return this.id;
+    }
+
+    // id 설정 메서드 (저장 후 사용)
+    public void setId(StudyMaterialId id) {
+        this.id = id;
+    }
 
     public Question getQuestion(int number) {
         return questions.getQuestion(number);

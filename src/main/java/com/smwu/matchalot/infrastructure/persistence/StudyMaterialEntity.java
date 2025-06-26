@@ -1,5 +1,7 @@
 package com.smwu.matchalot.infrastructure.persistence;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import io.r2dbc.postgresql.codec.Json;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.relational.core.mapping.Column;
@@ -27,7 +29,7 @@ public class StudyMaterialEntity extends BaseEntity {
     private String title;
 
     @Column("questions")
-    private String questionsJson;  // JSONB로 저장될 문제들 (String으로 매핑)
+    private Json questionsJson;  // JSONB로 저장될 문제들 (String으로 매핑)
 
     @Column("question_count")
     private Integer questionCount;

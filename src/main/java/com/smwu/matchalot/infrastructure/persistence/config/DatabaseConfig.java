@@ -1,5 +1,6 @@
 package com.smwu.matchalot.infrastructure.persistence.config;
 
+import io.r2dbc.postgresql.PostgresqlConnectionConfiguration;
 import io.r2dbc.spi.ConnectionFactories;
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryOptions;
@@ -25,6 +26,7 @@ public class DatabaseConfig  {
 
     @Value("${spring.r2dbc.password}")
     private String password;
+
 
 
 
