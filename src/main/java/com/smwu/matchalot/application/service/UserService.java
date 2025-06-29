@@ -68,7 +68,7 @@ public class UserService {
     public Mono<User> updateTrustScore(UserId userId, boolean isGoodMatch) {
         return userRepository.findById(userId)
                 .map(user -> isGoodMatch ?
-                        user.increaseeTrustScoreForGoodMatch() :
+                        user.increaseTrustScoreForGoodMatch() :
                         user.decreaseTrustScoreForBadMatch())
                 .flatMap(userRepository::save);
     }

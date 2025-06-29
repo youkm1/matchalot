@@ -50,7 +50,7 @@ class UserServiceTest {
     @DisplayName(" 매치 후 신뢰도가 1 증가한다")
     void 좋은_매치_후_신뢰도_증가() {
         // Given
-        User expectedUser = testUser.increaseeTrustScoreForGoodMatch();
+        User expectedUser = testUser.increaseTrustScoreForGoodMatch();
         when(userRepository.findById(testUserId)).thenReturn(Mono.just(testUser));
         when(userRepository.save(any(User.class))).thenReturn(Mono.just(expectedUser));
 
@@ -99,7 +99,7 @@ class UserServiceTest {
                 java.time.LocalDateTime.now()
         );
 
-        User expectedUser = maxTrustUser.increaseeTrustScoreForGoodMatch(); // 여전히 5
+        User expectedUser = maxTrustUser.increaseTrustScoreForGoodMatch(); // 여전히 5
         when(userRepository.findById(testUserId)).thenReturn(Mono.just(maxTrustUser));
         when(userRepository.save(any(User.class))).thenReturn(Mono.just(expectedUser));
 
@@ -189,8 +189,8 @@ class UserServiceTest {
     @DisplayName("연속된 신뢰도 업데이트 테스트")
     void 연속된_신뢰도_업데이트_테스트() {
         // Given
-        User firstUpdate = testUser.increaseeTrustScoreForGoodMatch(); // 0 -> 1
-        User secondUpdate = firstUpdate.increaseeTrustScoreForGoodMatch(); // 1 -> 2
+        User firstUpdate = testUser.increaseTrustScoreForGoodMatch(); // 0 -> 1
+        User secondUpdate = firstUpdate.increaseTrustScoreForGoodMatch(); // 1 -> 2
 
         when(userRepository.findById(testUserId))
                 .thenReturn(Mono.just(testUser))
