@@ -145,12 +145,6 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
     }
 
     private UserResponse toUserResponse(User user) {
-        return new UserResponse(
-                user.getId() != null ? user.getId().value() : null,
-                user.getNickname(),
-                user.getEmail().value(),
-                user.getTrustScore().value(),
-                user.getCreatedAt()
-        );
+        return UserResponse.from(user);
     }
 }

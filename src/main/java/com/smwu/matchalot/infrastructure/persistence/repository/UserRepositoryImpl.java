@@ -10,8 +10,8 @@ import com.smwu.matchalot.infrastructure.persistence.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
 
 
 @Repository
@@ -58,4 +58,17 @@ public class UserRepositoryImpl implements UserRepository {
     public Mono<Long> countByRole(UserRole role) {
         return r2dbcRepository.countByRole(role.name());
     }
+
+
+    public Flux<User> findAll() {
+        return r2dbcRepository.findAllByOrderByCreatedAtDesc()
+                .map(userMapper::toDomain);
+    }
+
+
+    public Flux<User> findByRole(UserRole role) {
+        return r2dbcRepository.findByRole(role.name())
+                .map(userMapper::toDomain);
+    }
+
 }

@@ -8,10 +8,12 @@ import com.smwu.matchalot.web.dto.LoginResponse;
 import com.smwu.matchalot.web.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.server.csrf.CsrfToken;
@@ -97,10 +99,7 @@ public class AuthController {
                 });
     }
 
-    /**
-     * 신규 사용자 회원가입
-     * OAuth2 인증 후 세션에 저장된 정보 사용
-     */
+
     @PostMapping("/signup")
     public Mono<ResponseEntity<LoginResponse>> signup(ServerWebExchange exchange) {
         return exchange.getSession()
@@ -134,6 +133,74 @@ public class AuthController {
                 })
                 .switchIfEmpty(Mono.just(ResponseEntity.badRequest()
                         .body(LoginResponse.fail("인증 정보가 없습니다. 다시 로그인해주세요."))));
+    }
+
+    @DeleteMapping("/me")
+    public Mono<ResponseEntity<Map<String, String>>> deleteAccount(
+            @AuthenticationPrincipal OAuth2User oauth2User,
+            ServerWebExchange exchange) {
+
+        String email = oauth2User.getAttribute("email");
+        Email userEmail = Email.of(email);
+
+        log.info("회원 탈퇴 요청: {}", email);
+
+        return userService.getUserByEmail(userEmail)
+                .flatMap(user -> {
+                    log.info("탈퇴 처리 시작: 사용자 ID={}, 이메일={}",
+                            user.getId().value(), user.getEmail().value());
+
+                    return userService.deleteUser(user.getId());
+                })
+                .then(clearAuthenticationCookies(exchange))
+                .then(Mono.just(ResponseEntity.ok()
+                        .header(HttpHeaders.SET_COOKIE, createLogoutCookie().toString())
+                        .body(Map.of(
+                                "success", "true",
+                                "message", "회원 탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.",
+                                "timestamp", String.valueOf(System.currentTimeMillis())
+                        ))))
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.badRequest().body(Map.of(
+                                "success", "false",
+                                "message", "탈퇴 처리 중 오류가 발생했습니다"
+                        )))
+                .onErrorReturn(IllegalStateException.class,
+                        ResponseEntity.badRequest().body(Map.of(
+                                "success", "false",
+                                "message", "관리자는 탈퇴할 수 없습니다"
+                        )))
+                .doOnSuccess(response -> log.info("회원 탈퇴 완료: {}", email))
+                .doOnError(error -> log.error("회원 탈퇴 실패: {}, 오류: {}", email, error.getMessage()));
+    }
+
+    @PostMapping("/me/withdrawal-request")
+    public Mono<ResponseEntity<Map<String, String>>> requestWithdrawal(
+            @RequestBody WithdrawalRequestDto request,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+
+        String email = oauth2User.getAttribute("email");
+        String reason = request.reason();
+
+        log.info("탈퇴 사유 수집: 이메일={}, 사유={}", email, reason);
+
+        // 탈퇴 사유 로깅 또는 통계 수집
+        return Mono.just(ResponseEntity.ok(Map.of(
+                "success", "true",
+                "message", "탈퇴 요청이 접수되었습니다. DELETE /api/v1/users/me 를 호출하여 최종 탈퇴하세요.",
+                "confirmationRequired", "true",
+                "nextStep", "DELETE /api/v1/users/me"
+        )));
+    }
+
+    private Mono<Void> clearAuthenticationCookies(ServerWebExchange exchange) {
+        return exchange.getSession()
+                .flatMap(session -> {
+                    log.info("세션 무효화: {}", session.getId());
+                    session.invalidate();
+                    return Mono.empty();
+                })
+                .then();
     }
 
     private Mono<LoginResponse> processLogin(ServerWebExchange exchange, Email userEmail) {
@@ -282,6 +349,7 @@ public class AuthController {
                     return ResponseEntity.ok(response);
                 }));
     }
+
     private void deleteAuthTokenCookie(ServerHttpResponse response, String path) {
         // ✅ 원본과 정확히 일치하는 설정으로 삭제
         String cookieValue1 = String.format(
@@ -315,6 +383,7 @@ public class AuthController {
         response.getHeaders().add("Set-Cookie", cookieValue);
         log.info("🗑️ 도메인 포함 쿠키 삭제: Path={}, Domain={}", path, domain);
     }
+
     private Mono<String> extractTokenFromCookie(ServerWebExchange exchange) {
         return Mono.fromCallable(() -> {
             var cookies = exchange.getRequest().getCookies().get("auth-token");
@@ -346,13 +415,23 @@ public class AuthController {
     }
 
     private UserResponse toUserResponse(User user) {
-        return new UserResponse(
-                user.getId() != null ? user.getId().value() : null,
-                user.getNickname(),
-                user.getEmail().value(),
-                user.getTrustScore().value(),
-                user.getCreatedAt()
-        );
+        return UserResponse.from(user);
     }
 
+    private ResponseCookie createLogoutCookie() {
+        return ResponseCookie.from("auth-token", "")
+                .httpOnly(true)
+                .secure(false) // HTTPS 환경에서는 true
+                .sameSite("Lax")
+                .maxAge(Duration.ZERO) // 즉시 만료
+                .path("/")
+                .build();
+    }
+
+    public record WithdrawalRequestDto(
+            String reason,          // 탈퇴 사유
+            boolean dataDelete,     // 데이터 삭제 동의
+            String feedback         // 피드백 (선택)
+    ) {
+    }
 }
