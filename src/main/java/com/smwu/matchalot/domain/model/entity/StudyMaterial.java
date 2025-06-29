@@ -18,10 +18,15 @@ public class StudyMaterial {
     private  ExamType examType;
     private  Semester semester;
     private  Questions questions;
+    private MaterialStatus status;
     private  LocalDateTime createdAt;
 
     public StudyMaterial(UserId uploaderId, String title, Subject subject, ExamType examType, Semester semester, Questions questions) {
-        this(null, uploaderId, title, subject, examType, semester, questions, LocalDateTime.now());
+        this(null, uploaderId, title, subject, examType, semester, questions,MaterialStatus.PENDING, LocalDateTime.now());
+    }
+
+    public StudyMaterial(UserId uploaderId, String title, Subject subject, ExamType examType, Semester semester, Questions questions, MaterialStatus status) {
+        this(null, uploaderId, title, subject, examType, semester, questions, status, LocalDateTime.now());
     }
 
     public boolean isUploadedBy(UserId userId) {
@@ -59,4 +64,33 @@ public class StudyMaterial {
         return questions.getSortedQuestions();
     }
 
+    public StudyMaterial approve() {
+        if (status != MaterialStatus.PENDING) {
+            throw new IllegalStateException("승인 대기 상태의 자료만 승인 가능합니다.");
+        }
+        return new StudyMaterial(id, uploaderId, title, subject, examType, semester, questions, MaterialStatus.APPROVED, createdAt);
+    }
+
+    public StudyMaterial reject() {
+        if (status != MaterialStatus.PENDING) {
+            throw new IllegalStateException("승인 대기 상태의 자료만 거절 가능합니다.");
+        }
+        return new StudyMaterial(id, uploaderId, title, subject, examType, semester, questions, MaterialStatus.REJECTED, createdAt);
+    }
+
+    public boolean canBeUsedForMatching() {
+        return status.canBeUsedForMatching();
+    }
+
+    public boolean isPendingApproval() {
+        return status.isPending();
+    }
+
+    public boolean isApproved() {
+        return status.isApproved();
+    }
+
+    public boolean isRejected() {
+        return status.isRejected();
+    }
 }

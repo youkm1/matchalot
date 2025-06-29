@@ -63,8 +63,10 @@ public record StudyMaterialResponse(
                 studyMaterial.getSemester().getDisplayName(),
                 studyMaterial.getTitle(),
                 studyMaterial.getQuestionCount(),
-                previewQuestions,  // 👈 정답 없는 버전
+                previewQuestions,
                 uploaderNickname,
+                studyMaterial.getUploaderId().value(),
+                trustScore,
                 studyMaterial.getCreatedAt(),
                 studyMaterial.getDisplayTitle()
         );

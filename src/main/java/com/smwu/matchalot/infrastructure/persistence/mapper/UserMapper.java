@@ -4,6 +4,7 @@ import com.smwu.matchalot.domain.model.entity.User;
 import com.smwu.matchalot.domain.model.vo.Email;
 import com.smwu.matchalot.domain.model.vo.TrustScore;
 import com.smwu.matchalot.domain.model.vo.UserId;
+import com.smwu.matchalot.domain.model.vo.UserRole;
 import com.smwu.matchalot.infrastructure.persistence.UserEntity;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ public class UserMapper {
                 Email.of(entity.getEmail()),         // String → Email VO
                 entity.getNickname(),
                 new TrustScore(entity.getTrustScore()),
+                UserRole.valueOf(entity.getRole()),
                 entity.getCreatedAt()
         );
     }
@@ -27,6 +29,8 @@ public class UserMapper {
         entity.setEmail(domain.getEmail().value());  // Email VO → String
         entity.setNickname(domain.getNickname());
         entity.setTrustScore(domain.getTrustScore().value());
+        entity.setRole(domain.getRole().name());
+        entity.setCreatedAt(domain.getCreatedAt());
         return entity;
     }
 }

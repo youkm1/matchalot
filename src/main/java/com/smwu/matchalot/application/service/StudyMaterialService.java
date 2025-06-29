@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -72,6 +74,83 @@ public class StudyMaterialService {
                     }
                     return studyMaterialRepository.deleteById(id);
                 });
+    }
+
+    // StudyMaterialService.java에 추가할 메서드들
+
+    /**
+     * 승인 대기 중인 족보 목록 조회 (관리자용)
+     */
+    public Flux<StudyMaterial> getPendingMaterials() {
+        return studyMaterialRepository.findByStatus(MaterialStatus.PENDING)
+                .doOnNext(material -> log.info("승인 대기 족보: {}", material.getTitle()));
+    }
+
+    /**
+     * 족보 승인 (관리자용)
+     */
+    public Mono<StudyMaterial> approveMaterial(StudyMaterialId materialId) {
+        return studyMaterialRepository.findById(materialId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")))
+                .flatMap(material -> {
+                    StudyMaterial approvedMaterial = material.approve();
+
+                    return studyMaterialRepository.save(approvedMaterial)
+                            .doOnSuccess(saved -> log.info("족보 승인 완료: {} (ID: {})",
+                                    saved.getTitle(), saved.getId().value()))
+                            .flatMap(saved -> checkForUserPromotion(saved.getUploaderId(), saved));
+                });
+    }
+
+    /**
+     * 족보 거절 (관리자용)
+     */
+    public Mono<StudyMaterial> rejectMaterial(StudyMaterialId materialId, String reason) {
+        return studyMaterialRepository.findById(materialId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")))
+                .flatMap(material -> {
+                    StudyMaterial rejectedMaterial = material.reject();
+
+                    return studyMaterialRepository.save(rejectedMaterial)
+                            .doOnSuccess(saved -> log.info("족보 거절: {} (ID: {}), 사유: {}",
+                                    saved.getTitle(), saved.getId().value(), reason));
+                });
+    }
+
+    /**
+     * 사용자 승격 확인 (준회원 → 정회원)
+     */
+    private Mono<StudyMaterial> checkForUserPromotion(UserId uploaderId, StudyMaterial approvedMaterial) {
+        return userService.getUserById(uploaderId)
+                .flatMap(user -> {
+                    // 준회원이고 첫 번째 족보가 승인된 경우 정회원으로 승격
+                    if (user.isPending()) {
+                        return userService.promoteToMember(uploaderId)
+                                .doOnSuccess(promoted -> log.info("사용자 승격: {} → 정회원 (신뢰도 +5점)",
+                                        promoted.getEmail().value()))
+                                .then(Mono.just(approvedMaterial));
+                    }
+                    return Mono.just(approvedMaterial);
+                });
+    }
+
+    /**
+     * 관리자 대시보드 통계
+     */
+    public Mono<Map<String, Object>> getAdminStatistics() {
+        return Mono.zip(
+                studyMaterialRepository.countByStatus(MaterialStatus.PENDING),
+                studyMaterialRepository.countByStatus(MaterialStatus.APPROVED),
+                studyMaterialRepository.countByStatus(MaterialStatus.REJECTED),
+                userService.countByRole(UserRole.PENDING),
+                userService.countByRole(UserRole.MEMBER)
+        ).map(tuple -> Map.of(
+                "pendingMaterials", tuple.getT1(),
+                "approvedMaterials", tuple.getT2(),
+                "rejectedMaterials", tuple.getT3(),
+                "pendingUsers", tuple.getT4(),
+                "members", tuple.getT5()
+        ));
     }
 
 

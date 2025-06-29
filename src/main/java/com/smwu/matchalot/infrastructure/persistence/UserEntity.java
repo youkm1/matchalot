@@ -19,4 +19,8 @@ public class UserEntity extends BaseEntity {
 
     @Column("trust_score")
     private int trustScore;
+
+    @Column("role")
+    private String role;
+
 }
