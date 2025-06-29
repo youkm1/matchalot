@@ -17,13 +17,13 @@ public class StudyMaterialMapper {
 
     private final ObjectMapper objectMapper;
 
-    // StudyMaterialMapper.java의 toDomain 메서드에서 status 매핑 확인
     public StudyMaterial toDomain(StudyMaterialEntity entity) {
         try {
             // JSON을 Questions 객체로 변환
-            QuestionDto[] questionDtos = objectMapper.readValue(entity.getQuestionsJson(), QuestionDto[].class);
+            String questionsJsonString = entity.getQuestionsJson().asString();
+            QuestionDto[] questionDtos = objectMapper.readValue(questionsJsonString, QuestionDto[].class);
             List<Question> questionList = java.util.Arrays.stream(questionDtos)
-                    .map(dto -> Question.of(dto.number(), dto.content(), dto.answer(), dto.description()))
+                    .map(dto -> Question.of(dto.number(), dto.content(), dto.answer(), dto.explanation()))
                     .toList();
             Questions questions = new Questions(questionList);
 
@@ -35,7 +35,7 @@ public class StudyMaterialMapper {
                     ExamType.of(entity.getExamType()),
                     new Semester(entity.getYear(), entity.getSeason()),
                     questions,
-                    MaterialStatus.valueOf(entity.getStatus()), // status 매핑 추가
+                    entity.getStatus() != null ? MaterialStatus.valueOf(entity.getStatus()) : MaterialStatus.PENDING,
                     entity.getCreatedAt()
             );
         } catch (JsonProcessingException e) {
@@ -43,12 +43,12 @@ public class StudyMaterialMapper {
         }
     }
 
-    // toEntity 메서드에서도 status 매핑 확인
     public StudyMaterialEntity toEntity(StudyMaterial domain) {
         try {
             StudyMaterialEntity entity = new StudyMaterialEntity();
 
-            if (domain.getId() != null) {
+            // id 처리: 실제 값이 있는 것도 확인 후 설정
+            if (domain.getId() != null && domain.getId().value() != null) {
                 entity.setId(domain.getId().value());
             }
 
@@ -58,15 +58,16 @@ public class StudyMaterialMapper {
             entity.setExamType(domain.getExamType().type());
             entity.setYear(domain.getSemester().year());
             entity.setSeason(domain.getSemester().season());
-            entity.setStatus(domain.getStatus().name()); // status 매핑 추가
+            entity.setStatus(domain.getStatus().name()); // ✅ status 매핑 추가
+            entity.setQuestionCount(domain.getQuestionCount());
 
-            // Questions 객체를 JSON으로 변환
+            // Questions를 JSON으로 변환
             List<QuestionDto> questionDtos = domain.getAllQuestions().stream()
-                    .map(q -> new QuestionDto(q.getNumber(), q.getContent(), q.getAnswer(), q.getDescription()))
+                    .map(q -> new QuestionDto(q.number(), q.content(), q.answer(), q.explanation()))
                     .toList();
 
-            String questionsJson = objectMapper.writeValueAsString(questionDtos);
-            entity.setQuestionsJson(questionsJson);
+            String questionsJsonString = objectMapper.writeValueAsString(questionDtos);
+            entity.setQuestionsJson(Json.of(questionsJsonString));
             entity.setCreatedAt(domain.getCreatedAt());
 
             return entity;
@@ -74,3 +75,12 @@ public class StudyMaterialMapper {
             throw new RuntimeException("Questions JSON 변환 실패", e);
         }
     }
+
+
+    public record QuestionDto(
+            int number,
+            String content,
+            String answer,
+            String explanation
+    ) {}
+}
