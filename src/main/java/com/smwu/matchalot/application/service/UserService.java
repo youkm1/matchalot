@@ -20,7 +20,7 @@ public class UserService {
     private final UserRepository userRepository;
 
     @Value("${matchalot.admin.emails}")
-    private static String ADMIN_EMAILS;
+    private String ADMIN_EMAILS;
 
     public Mono<User> getUserByEmail(Email email) {
         return userRepository.findByEmail(email);
@@ -76,5 +76,9 @@ public class UserService {
         return userRepository.findByEmail(email)
                 .map(User::isAdmin)
                 .defaultIfEmpty(Set.of(ADMIN_EMAILS.split(",")).contains(email.value()));
+    }
+
+    public Mono<Long> countByRole(UserRole role) {
+        return userRepository.countByRole(role);
     }
 }

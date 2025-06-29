@@ -94,4 +94,34 @@ public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
         return r2dbcRepository.findAllByOrderByCreatedAtDesc() // 최신순
                 .map(mapper::toDomain);
     }
+    @Override
+    public Flux<StudyMaterial> findByStatus(MaterialStatus status) {
+        return r2dbcRepository.findByStatus(status.name())
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Mono<Long> countByStatus(MaterialStatus status) {
+        return r2dbcRepository.countByStatus(status.name());
+    }
+
+    @Override
+    public Flux<StudyMaterial> findAllApproved() {
+        return r2dbcRepository.findAllApproved()
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Flux<StudyMaterial> findBySubjectAndStatus(Subject subject, MaterialStatus status) {
+        return r2dbcRepository.findBySubjectAndStatus(subject.name(), status.name())
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Flux<StudyMaterial> findBySubjectAndExamTypeAndStatus(Subject subject, ExamType examType, MaterialStatus status) {
+        return r2dbcRepository.findBySubjectAndExamTypeAndStatus(
+                        subject.name(), examType.type(), status.name())
+                .map(mapper::toDomain);
+    }
+
 }

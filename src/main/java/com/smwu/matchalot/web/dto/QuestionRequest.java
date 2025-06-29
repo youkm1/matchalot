@@ -20,9 +20,9 @@ public record QuestionRequest(
         String answer,
 
         @Size(max = 1000, message = "설명은 1000자 이하여야 합니다")
-        String description
+        String explanation
 ) {
         public Question toQuestion() {
-                return Question.of(number, content, answer, description);
+                return Question.of(number, content, answer, explanation);
         }
 }

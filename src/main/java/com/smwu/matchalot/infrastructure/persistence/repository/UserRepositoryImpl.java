@@ -3,6 +3,7 @@ package com.smwu.matchalot.infrastructure.persistence.repository;
 import com.smwu.matchalot.domain.model.entity.User;
 import com.smwu.matchalot.domain.model.vo.Email;
 import com.smwu.matchalot.domain.model.vo.UserId;
+import com.smwu.matchalot.domain.model.vo.UserRole;
 import com.smwu.matchalot.domain.reposiotry.UserRepository;
 import com.smwu.matchalot.infrastructure.persistence.UserEntity;
 import com.smwu.matchalot.infrastructure.persistence.mapper.UserMapper;
@@ -51,5 +52,10 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public Mono<Void> deleteById(UserId id) {
         return r2dbcRepository.deleteById(id.value());
+    }
+
+    @Override
+    public Mono<Long> countByRole(UserRole role) {
+        return r2dbcRepository.countByRole(role.name());
     }
 }

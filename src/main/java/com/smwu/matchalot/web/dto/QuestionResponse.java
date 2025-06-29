@@ -5,7 +5,7 @@ import com.smwu.matchalot.domain.model.vo.Question;
 public record QuestionResponse(int number,
                                String content,
                                String answer,
-                               String description
+                               String explanation
 ) {
     public static QuestionResponse from(Question question) {
         return new QuestionResponse(

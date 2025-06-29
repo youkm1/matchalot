@@ -41,6 +41,7 @@ public class StudyMaterialService {
                 .doOnSuccess(saved -> log.info("저장 성공 ID={}", saved != null && saved.getId() != null ? saved.getId().value() : "null"))
                 .doOnError(error -> log.error("저장 실패: 오류={}", error.getMessage()));
     }
+
     public Flux<StudyMaterial> getAllStudyMaterials() {
         return studyMaterialRepository.findAll();
     }
@@ -76,7 +77,7 @@ public class StudyMaterialService {
                 });
     }
 
-    // StudyMaterialService.java에 추가할 메서드들
+    // ========== 관리자 승인 시스템 메서드들 ==========
 
     /**
      * 승인 대기 중인 족보 목록 조회 (관리자용)
@@ -152,6 +153,4 @@ public class StudyMaterialService {
                 "members", tuple.getT5()
         ));
     }
-
-
 }

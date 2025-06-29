@@ -15,4 +15,11 @@ public interface StudyMaterialRepository {
     Mono<Boolean> existsBySubjectAndExamTypeAndSemester(Subject subject, ExamType examType, Semester semester);
     Mono<Void> deleteById(StudyMaterialId id);
     Flux<StudyMaterial> findAll();
+    Flux<StudyMaterial> findByStatus(MaterialStatus status);
+
+    //관리자용
+    Mono<Long> countByStatus(MaterialStatus status);
+    Flux<StudyMaterial> findAllApproved();
+    Flux<StudyMaterial> findBySubjectAndStatus(Subject subject, MaterialStatus status);
+    Flux<StudyMaterial> findBySubjectAndExamTypeAndStatus(Subject subject, ExamType examType, MaterialStatus status);
 }

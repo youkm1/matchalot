@@ -17,11 +17,11 @@ public class StudyMaterialMapper {
 
     private final ObjectMapper objectMapper;
 
+    // StudyMaterialMapper.java의 toDomain 메서드에서 status 매핑 확인
     public StudyMaterial toDomain(StudyMaterialEntity entity) {
         try {
             // JSON을 Questions 객체로 변환
-            String questionsJsonString = entity.getQuestionsJson().asString();
-            QuestionDto[] questionDtos = objectMapper.readValue(questionsJsonString, QuestionDto[].class);
+            QuestionDto[] questionDtos = objectMapper.readValue(entity.getQuestionsJson(), QuestionDto[].class);
             List<Question> questionList = java.util.Arrays.stream(questionDtos)
                     .map(dto -> Question.of(dto.number(), dto.content(), dto.answer(), dto.description()))
                     .toList();
@@ -33,50 +33,44 @@ public class StudyMaterialMapper {
                     entity.getTitle(),
                     Subject.of(entity.getSubject()),
                     ExamType.of(entity.getExamType()),
-                    Semester.of(entity.getYear(), entity.getSeason()),
+                    new Semester(entity.getYear(), entity.getSeason()),
                     questions,
+                    MaterialStatus.valueOf(entity.getStatus()), // status 매핑 추가
                     entity.getCreatedAt()
             );
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("문제 데이터 파싱 오류", e);
+            throw new RuntimeException("Questions JSON 파싱 실패", e);
         }
     }
+
+    // toEntity 메서드에서도 status 매핑 확인
     public StudyMaterialEntity toEntity(StudyMaterial domain) {
         try {
             StudyMaterialEntity entity = new StudyMaterialEntity();
 
-            //id 처리 수정: 실제 값이 있는것도확인후설정
-            if (domain.getId() != null && domain.getId().value() != null) {
+            if (domain.getId() != null) {
                 entity.setId(domain.getId().value());
             }
+
             entity.setUploaderId(domain.getUploaderId().value());
+            entity.setTitle(domain.getTitle());
             entity.setSubject(domain.getSubject().name());
             entity.setExamType(domain.getExamType().type());
             entity.setYear(domain.getSemester().year());
             entity.setSeason(domain.getSemester().season());
-            entity.setTitle(domain.getTitle());
-            entity.setQuestionCount(domain.getQuestionCount()); // 캐시
+            entity.setStatus(domain.getStatus().name()); // status 매핑 추가
 
-            // Questions를 JSON으로 변환
+            // Questions 객체를 JSON으로 변환
             List<QuestionDto> questionDtos = domain.getAllQuestions().stream()
-                    .map(q -> new QuestionDto(q.number(), q.content(), q.answer(), q.explanation()))
+                    .map(q -> new QuestionDto(q.getNumber(), q.getContent(), q.getAnswer(), q.getDescription()))
                     .toList();
-            String questionsJsonString = objectMapper.writeValueAsString(questionDtos);
-            entity.setQuestionsJson(Json.of(questionsJsonString));
 
+            String questionsJson = objectMapper.writeValueAsString(questionDtos);
+            entity.setQuestionsJson(questionsJson);
             entity.setCreatedAt(domain.getCreatedAt());
 
             return entity;
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("문제 데이터 직렬화 오류", e);
+            throw new RuntimeException("Questions JSON 변환 실패", e);
         }
     }
-
-    // JSON 직렬화용 DTO
-    public record QuestionDto(
-            int number,
-            String content,
-            String answer,
-            String description
-    ) {}
-}

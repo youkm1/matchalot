@@ -8,4 +8,5 @@ public interface UserR2dbcRepository extends R2dbcRepository<UserEntity, Long> {
     Mono<UserEntity> findByEmail(String email);
 
     Mono<Boolean> existsByEmail(String email);
+    Mono<Long> countByRole(String role);
 }

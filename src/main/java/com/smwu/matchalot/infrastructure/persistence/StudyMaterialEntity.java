@@ -33,4 +33,7 @@ public class StudyMaterialEntity extends BaseEntity {
 
     @Column("question_count")
     private Integer questionCount;
+
+    @Column("status")
+    private String status;
 }
