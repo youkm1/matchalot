@@ -33,8 +33,9 @@ public class MatchController {
     private final UserService userService;
     private final StudyMaterialService studyMaterialService;
 
-    @PostMapping("/request")
+    @PostMapping("/request/{materialId}")
     public Mono<ResponseEntity<MatchResponse>> requestMatch(
+            @PathVariable("materialId") Long materialId,
             @Valid @RequestBody MatchRequestDto request,
             @AuthenticationPrincipal OAuth2User oAuth2User) {
 
@@ -57,7 +58,7 @@ public class MatchController {
 
     @GetMapping("/potential/{materialId}")
     public Flux<StudyMaterialSummaryResponse> getPotentialPartners(
-            @AuthenticationPrincipal OAuth2User oAuth2User, @PathVariable Long materialId) {
+            @AuthenticationPrincipal OAuth2User oAuth2User, @PathVariable("materialId") Long materialId) {
 
         String email = oAuth2User.getAttribute("email");
         Email userEmail = Email.of(email);
@@ -70,7 +71,7 @@ public class MatchController {
 
     @PutMapping("/{matchId}/accept")
     public Mono<ResponseEntity<MatchResponse>> acceptMatch(
-            @PathVariable Long matchId,
+            @PathVariable("matchId") Long matchId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
         String email = oauth2User.getAttribute("email");
@@ -92,7 +93,7 @@ public class MatchController {
      */
     @PutMapping("/{matchId}/reject")
     public Mono<ResponseEntity<MatchResponse>> rejectMatch(
-            @PathVariable Long matchId,
+            @PathVariable("matchId") Long matchId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
         String email = oauth2User.getAttribute("email");
@@ -110,7 +111,7 @@ public class MatchController {
     }
     @PutMapping("/{matchId}/complete")
     public Mono<ResponseEntity<MatchResponse>> completeMatch(
-            @PathVariable Long matchId,
+            @PathVariable("matchId") Long matchId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
         String email = oauth2User.getAttribute("email");
@@ -180,8 +181,13 @@ public class MatchController {
                 )));
     }
     private Mono<StudyMaterialSummaryResponse> toStudyMaterialSummaryResponse(StudyMaterial studyMaterial) {
-        return getUserNickname(studyMaterial.getUploaderId())
-                .map(nickname -> StudyMaterialSummaryResponse.from(studyMaterial, nickname));
+        return userService.getUserById(studyMaterial.getUploaderId())  // Mono<User> 반환
+                .map(uploader -> StudyMaterialSummaryResponse.from(  // uploader는 User 객체
+                        studyMaterial,
+                        uploader.getNickname(),           // User.getNickname() ✅
+                        uploader.getTrustScore().value()  // User.getTrustScore() ✅
+                ))
+                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음", 0)));
     }
     private Mono<String> getUserNickname(UserId userId) {
         return userService.getUserById(userId)

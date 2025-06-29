@@ -22,6 +22,15 @@ public class MatchService {
     private final UserService userService;
     private final StudyMaterialService studyMaterialService;
 
+    public Mono<Boolean> hasCompletedMatch(UserId userId, StudyMaterialId materialId) {
+        return getMyMatches(userId)
+                .filter(match -> match.getStatus() == MatchStatus.COMPLETED)
+                .filter(match ->
+                        match.getRequesterMaterialId().equals(materialId) ||
+                                match.getReceiverMaterialId().equals(materialId)
+                )
+                .hasElements();
+    }
     public Mono<Match> requestMatch(UserId requesterId,StudyMaterialId requesterMaterialId, UserId receiverId) {
         return validateMatchRequest(requesterId, requesterMaterialId,receiverId)
                 .flatMap(ignored->findPartnerMaterial(receiverId, requesterMaterialId))

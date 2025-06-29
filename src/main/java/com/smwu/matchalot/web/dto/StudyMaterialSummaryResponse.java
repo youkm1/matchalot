@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 public record StudyMaterialSummaryResponse(
         Long id,
+        Long uploaderId,
         String subject,
         String examType,
         String semesterDisplay,
@@ -18,6 +19,7 @@ public record StudyMaterialSummaryResponse(
     public static StudyMaterialSummaryResponse from(StudyMaterial studyMaterial, String uploaderNickname, Integer trustScore) {
         return new StudyMaterialSummaryResponse(
                 studyMaterial.getId().value(),
+                studyMaterial.getUploaderId().value(),
                 studyMaterial.getSubject().name(),
                 studyMaterial.getExamType().type(),
                 studyMaterial.getSemester().getDisplayName(),

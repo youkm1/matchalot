@@ -1,5 +1,8 @@
 package com.smwu.matchalot.infrastructure.persistence.repository;
 
+import com.smwu.matchalot.domain.model.entity.Match;
+import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
+import com.smwu.matchalot.domain.model.vo.UserId;
 import com.smwu.matchalot.infrastructure.persistence.MatchEntity;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
@@ -58,4 +61,7 @@ public interface MatchR2dbcRepository extends R2dbcRepository<MatchEntity, Long>
             "(requester_id = :userId AND requester_material_id = :materialId) OR " +
             "(partner_id = :userId AND partner_material_id = :materialId)")
     Mono<Long> countByUserIdAndStudyMaterialId(Long userId, Long materialId);
+
+
+
 }

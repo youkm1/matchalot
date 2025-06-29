@@ -1,5 +1,6 @@
 package com.smwu.matchalot.web.controller;
 
+import com.smwu.matchalot.application.service.MatchService;
 import com.smwu.matchalot.application.service.StudyMaterialService;
 import com.smwu.matchalot.application.service.UserService;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
@@ -24,6 +25,7 @@ public class StudyMaterialController {
 
     private final StudyMaterialService studyMaterialService;
     private final UserService userService;
+    private final MatchService matchService;
 
     @PostMapping
     public Mono<ResponseEntity<StudyMaterialResponse>> uploadStudyMaterial(
@@ -45,7 +47,7 @@ public class StudyMaterialController {
                 .flatMap(studyMaterial -> {
                     // 업로더 닉네임을 가져와서 응답 생성
                     return userService.getUserById(studyMaterial.getUploaderId())
-                            .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname()));
+                            .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname(), uploader.getTrustScore().value()));
                 })
                 .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
                 .onErrorReturn(IllegalArgumentException.class,
@@ -78,20 +80,28 @@ public class StudyMaterialController {
 
     @GetMapping("/{materialId}")
     public Mono<ResponseEntity<StudyMaterialResponse>> getStudyMaterial(
-            @PathVariable Long materialId) {
+            @PathVariable("materialId") Long materialId,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
 
+        String email = oauth2User.getAttribute("email");
+        Email userEmail = Email.of(email);
         StudyMaterialId id = StudyMaterialId.of(materialId);
 
-        return studyMaterialService.getStudyMaterial(id)
-                .flatMap(studyMaterial -> {
-                    // 업로더 정보 포함해서 응답 생성
-                    return userService.getUserById(studyMaterial.getUploaderId())
-                            .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname()));
+        return userService.getUserByEmail(userEmail)
+                .flatMap(user -> {
+                    return matchService.hasCompletedMatch(user.getId(), id)
+                            .flatMap(hasAccess -> {
+                                if (hasAccess) {
+                                    return studyMaterialService.getStudyMaterial(id)
+                                            .flatMap(this::toFullResponse);
+                                } else {
+                                    return studyMaterialService.getStudyMaterial(id)
+                                            .flatMap(this::toPreviewResponse);
+                                }
+                            });
                 })
                 .map(ResponseEntity::ok)
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()))
-                .onErrorReturn(IllegalArgumentException.class,
-                        ResponseEntity.badRequest().build());
+                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
     }
 
 
@@ -109,7 +119,7 @@ public class StudyMaterialController {
 
     @DeleteMapping("/{materialId}")
     public Mono<ResponseEntity<Map<String, String>>> deleteStudyMaterial(
-            @PathVariable Long materialId,
+            @PathVariable("materialId") Long materialId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
         String email = oauth2User.getAttribute("email");
@@ -162,5 +172,17 @@ public class StudyMaterialController {
                         uploader.getNickname(),
                         uploader.getTrustScore().value()))
                 .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음",0)));
+    }
+
+    private Mono<StudyMaterialResponse> toFullResponse(StudyMaterial studyMaterial) {
+        return userService.getUserById(studyMaterial.getUploaderId())
+                .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname(), uploader.getTrustScore().value()))
+                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial, "알 수 없음", 0)));
+    }
+
+    private Mono<StudyMaterialResponse> toPreviewResponse(StudyMaterial studyMaterial) {
+        return userService.getUserById(studyMaterial.getUploaderId())
+                .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname(), uploader.getTrustScore().value()))
+                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial, "알 수 없음", 0)));
     }
 }

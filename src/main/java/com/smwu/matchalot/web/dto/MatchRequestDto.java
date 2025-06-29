@@ -9,7 +9,9 @@ public record MatchRequestDto(
         Long requesterMaterialId,
 
         @NotNull(message = "상대방 ID 는 필수입니다.")
-        Long receiverId
+        Long receiverId,
+
+        String message
 ) {
     public StudyMaterialId getRequesterMaterialId() {
         return StudyMaterialId.of(requesterMaterialId);
