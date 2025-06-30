@@ -23,7 +23,9 @@ public class StudyMaterialMapper {
             String questionsJsonString = entity.getQuestionsJson().asString();
             QuestionDto[] questionDtos = objectMapper.readValue(questionsJsonString, QuestionDto[].class);
             List<Question> questionList = java.util.Arrays.stream(questionDtos)
-                    .map(dto -> Question.of(dto.number(), dto.content(), dto.answer(), dto.explanation()))
+                    .map(dto -> Question.of(dto.number(), dto.content(), dto.answer(), dto.explanation() != null && !dto.explanation().trim().isEmpty()
+                            ? dto.explanation()
+                            : "해설 없음"))
                     .toList();
             Questions questions = new Questions(questionList);
 
@@ -82,5 +84,6 @@ public class StudyMaterialMapper {
             String content,
             String answer,
             String explanation
-    ) {}
+    ) {
+    }
 }

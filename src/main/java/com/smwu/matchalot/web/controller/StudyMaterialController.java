@@ -7,6 +7,7 @@ import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.web.dto.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +22,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/study-materials")
 @RequiredArgsConstructor
+@Slf4j
 public class StudyMaterialController {
 
     private final StudyMaterialService studyMaterialService;
@@ -34,7 +36,7 @@ public class StudyMaterialController {
 
         String email = oauth2User.getAttribute("email");
         Email userEmail = Email.of(email);
-
+        log.info("email: {}", email);
         return userService.getUserByEmail(userEmail)
                 .flatMap(user -> studyMaterialService.uploadStudyMaterial(
                         user.getId(),
@@ -141,8 +143,10 @@ public class StudyMaterialController {
     public Mono<ResponseEntity<Map<String, Object>>> getAvailableSubjects() {
         // 현재는 상수로 정의된 과목들을 반환
         var subjects = java.util.List.of(
-                Subject.PROGRAMMING_LANGUAGES.name(),
-                Subject.COMPUTER_ARCHITECTURE.name()
+                Subject.KOREAN_WOMEN_HISTORY.name(),
+                Subject.ALGORITHM.name(),
+                Subject.DIGITAL_LOGIC_CIRCUIT.name(),
+                Subject.STATISTICS_INTRODUCTION.name()
         );
 
         return Mono.just(ResponseEntity.ok(Map.of(

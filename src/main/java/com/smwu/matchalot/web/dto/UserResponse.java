@@ -19,8 +19,8 @@ public record UserResponse(
     public static UserResponse from(User user) {
         return new UserResponse(
                 user.getId().value(),
-                user.getEmail().value(),
                 user.getNickname(),
+                user.getEmail().value(),
                 user.getTrustScore().value(),
                 user.getCreatedAt(),
                 user.getRole().name(),

@@ -20,7 +20,7 @@ import java.util.Set;
 public class UserService {
     private final UserRepository userRepository;
 
-    @Value("${matchalot.admin.emails}")
+    @Value("${spring.application.email}")
     private String ADMIN_EMAILS;
 
     public Mono<User> getUserByEmail(Email email) {

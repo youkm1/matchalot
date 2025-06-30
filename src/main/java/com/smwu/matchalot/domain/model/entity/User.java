@@ -29,7 +29,11 @@ public class User {
     }
 
     public boolean participableInMatch() {
-        return trustScore.isAboveThreshold() && (role == UserRole.MEMBER ||role == UserRole.ADMIN);
+        boolean result = trustScore.isAboveThreshold() && (role == UserRole.MEMBER || role == UserRole.ADMIN);
+        // 임시 로그 추가
+        System.out.println("participableInMatch: trustScore=" + trustScore.value() +
+                ", role=" + role + ", result=" + result);
+        return result;
     }
 
 
