@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS study_material (
     uploader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     subject VARCHAR(100) NOT NULL,
     exam_type VARCHAR(50) NOT NULL
-        CHECK ( exam_type IN ('중간고사', '기말고사') ),
+        CHECK ( exam_type IN ('MIDTERM', 'FINAL') ),
     year INTEGER NOT NULL
         CHECK ( year >= 2018 AND year <= 2025 ),
     season VARCHAR(20) NOT NULL

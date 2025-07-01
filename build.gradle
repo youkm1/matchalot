@@ -1,8 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.0'
+    id 'org.springframework.boot' version '3.3.5'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.google.protobuf' version '0.9.4'
 }
 
 group = 'com.smwu'
@@ -19,83 +18,49 @@ configurations {
         extendsFrom annotationProcessor
     }
 }
-compileJava {
-    options.compilerArgs += ["-parameters"]
-}
 
 repositories {
     mavenCentral()
 }
 
-ext {
-    set('springGrpcVersion', "0.8.0")
-}
-
 dependencies {
-    // Spring Boot 기본
+    // Reactive Streams 핵심 의존성
+    implementation 'org.reactivestreams:reactive-streams'
+    implementation 'io.projectreactor:reactor-core'
+
+    // Spring Boot 웹 스택
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    //jwt token
+
+    // JWT 토큰
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     implementation 'io.jsonwebtoken:jjwt-impl:0.12.3'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.12.3'
-    // R2DBC (Reactive Database)
+
+    // 데이터베이스 (R2DBC + JDBC)
     implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
     implementation 'org.postgresql:r2dbc-postgresql'
-    // JDBC (Flyway용)
-    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+
+    // Flyway 마이그레이션
+    implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
     runtimeOnly 'org.postgresql:postgresql'
-    // gRPC
-    implementation 'io.grpc:grpc-netty-shaded'
-    implementation 'io.grpc:grpc-protobuf'
-    implementation 'io.grpc:grpc-stub'
 
-    // 기타
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 
-    implementation("org.projectlombok:lombok:1.18.24")
-
-    testImplementation 'org.mockito:mockito-core'
-    testImplementation 'org.mockito:mockito-junit-jupiter'
+    // 테스트
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'io.projectreactor:reactor-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-}
-
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.grpc:spring-grpc-dependencies:${springGrpcVersion}"
-    }
-}
-
-protobuf {
-    protoc {
-        artifact = 'com.google.protobuf:protoc'
-    }
-    plugins {
-        grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java'
-        }
-    }
-    generateProtoTasks {
-        all()*.plugins {
-            grpc {
-                option 'jakarta_omit'
-                option '@generated=omit'
-            }
-        }
-    }
 }
 
 tasks.named('test') {
     useJUnitPlatform()
-}
-
-tasks.withType(JavaCompile) {
-    options.compilerArgs += ['-parameters']
 }
