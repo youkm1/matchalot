@@ -51,6 +51,8 @@ public class SecurityConfig {
         repository.setHeaderName("X-XSRF-TOKEN");
         repository.setParameterName("_csrf");
 
+        repository.setCookieHttpOnly(false); // JavaScript에서 접근 가능
+        repository.setCookiePath("/");       // 모든 경로에서 사용
         return repository;
     }
     @Bean
