@@ -6,6 +6,7 @@ import com.smwu.matchalot.domain.model.vo.Email;
 import com.smwu.matchalot.web.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.core.Authentication;
@@ -26,7 +27,8 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserService userService;
-    private final String FRONTEND_URL = "https://matchalot.duckdns.org";
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String FRONTEND_URL;
 
     @Override
     public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange, Authentication authentication) {
