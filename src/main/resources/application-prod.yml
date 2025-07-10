@@ -4,12 +4,12 @@ spring:
     email: ${ADMIN_EMAIL}
   
   r2dbc:
-    url: r2dbc:postgresql://postgres:5432/matchalot
+    url: r2dbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   
   datasource:
-    url: jdbc:postgresql://postgres:5432/matchalot
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
