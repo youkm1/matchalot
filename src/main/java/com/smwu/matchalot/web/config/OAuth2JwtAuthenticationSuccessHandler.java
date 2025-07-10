@@ -27,8 +27,8 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserService userService;
-    @Value("${app.frontend.url:http://localhost:3000}")
-    private String FRONTEND_URL;
+
+    private String FRONTEND_URL="https://matchalot.duckdns.org";
 
     @Override
     public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange, Authentication authentication) {
@@ -115,11 +115,12 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
     }
 
     private Mono<Void> redirectToError(ServerWebExchange exchange, String errorCode, String message) {
+        log.info("🔧 FRONTEND_URL 사용: {}", FRONTEND_URL);
         String redirectUrl = String.format("%s/login?error=%s&message=%s",
                 FRONTEND_URL,
                 errorCode,
                 encodeMessage(message));
-
+        log.info("🔧 리다이렉트 URL: {}", redirectUrl);
         return redirect(exchange, redirectUrl);
     }
 
