@@ -1,8 +1,8 @@
 package com.smwu.matchalot.domain.model.vo;
 
 public record ExamType(String type) {
-    public static final ExamType MIDTERM = new ExamType("MIDTERM");
-    public static final ExamType FINAL = new ExamType("FINAL");
+    public static final ExamType MIDTERM = new ExamType("중간고사");
+    public static final ExamType FINAL = new ExamType("기말고사");
 
     public ExamType {
         if (type == null || type.trim().isEmpty()) {

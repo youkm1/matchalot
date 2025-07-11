@@ -146,7 +146,7 @@ public class StudyMaterialController {
                 Subject.KOREAN_WOMEN_HISTORY.name(),
                 Subject.ALGORITHM.name(),
                 Subject.DIGITAL_LOGIC_CIRCUIT.name(),
-                Subject.STATISTICS_INTRODUCTION.name()
+                Subject.MODERN_THOUGH.name()
         );
 
         return Mono.just(ResponseEntity.ok(Map.of(

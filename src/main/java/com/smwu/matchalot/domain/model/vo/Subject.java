@@ -11,8 +11,8 @@ public record Subject(String name) {
         return new Subject(name);
     }
 
-    public static final Subject KOREAN_WOMEN_HISTORY = new Subject("KOREAN_WOMEN_HISTORY");
-    public static final Subject ALGORITHM = new Subject("ALGORITHM");
-    public static final Subject DIGITAL_LOGIC_CIRCUIT = new Subject("DIGITAL_LOGIC_CIRCUIT");
-    public static final Subject STATISTICS_INTRODUCTION = new Subject("STATISTICS_INTRODUCTION");
+    public static final Subject KOREAN_WOMEN_HISTORY = new Subject("한국여성의역사");
+    public static final Subject ALGORITHM = new Subject("알고리즘");
+    public static final Subject DIGITAL_LOGIC_CIRCUIT = new Subject("디지털논리회로");
+    public static final Subject MODERN_THOUGH = new Subject("보고듣고만지는현대사상");
 }
