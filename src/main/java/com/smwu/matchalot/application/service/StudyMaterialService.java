@@ -30,7 +30,7 @@ public class StudyMaterialService {
                                                    Questions questions) {
         return userService.getUserById(uploaderId)
                 .doOnNext(user -> log.info("족보 업로드 시도: 이용자={}, 닉네임={}", user.getId().value(), user.getNickname()))
-                .filter(User::participableInMatch)
+                .filter(User::canUploadMaterial) //ban당하지않는이상..
                 .switchIfEmpty(Mono.error(new IllegalStateException("신뢰도가 부족하여 족보를 업로드할 수 없습니다")))
                 .flatMap(user -> {
                     StudyMaterial studyMaterial = new StudyMaterial(
