@@ -9,6 +9,7 @@ import io.r2dbc.postgresql.codec.Json;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -60,9 +61,8 @@ public class StudyMaterialMapper {
             entity.setExamType(domain.getExamType().type());
             entity.setYear(domain.getSemester().year());
             entity.setSeason(domain.getSemester().season());
-            entity.setStatus(domain.getStatus().name()); // ✅ status 매핑 추가
+            entity.setStatus(domain.getStatus().name());
             entity.setQuestionCount(domain.getQuestionCount());
-
             // Questions를 JSON으로 변환
             List<QuestionDto> questionDtos = domain.getAllQuestions().stream()
                     .map(q -> new QuestionDto(q.number(), q.content(), q.answer(), q.explanation()))
@@ -71,6 +71,13 @@ public class StudyMaterialMapper {
             String questionsJsonString = objectMapper.writeValueAsString(questionDtos);
             entity.setQuestionsJson(Json.of(questionsJsonString));
             entity.setCreatedAt(domain.getCreatedAt());
+            entity.setUpdatedAt(LocalDateTime.now());
+
+            if (domain.getCreatedAt() != null) {
+                entity.setCreatedAt(domain.getCreatedAt());
+            } else {
+                entity.setCreatedAt(LocalDateTime.now());
+            }
 
             return entity;
         } catch (JsonProcessingException e) {

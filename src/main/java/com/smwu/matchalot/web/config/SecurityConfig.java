@@ -1,6 +1,7 @@
 package com.smwu.matchalot.web.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,6 +36,7 @@ public class SecurityConfig {
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
+
 
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -88,11 +90,14 @@ public class SecurityConfig {
 
 
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/api/v1/auth/csrf-token").permitAll()
-                        .pathMatchers("/api/v1/auth/refresh-csrf").permitAll()
                         .pathMatchers("/api/v1/auth/**").permitAll()
                         .pathMatchers("/login", "/oauth2/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/study-materials").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/study-materials/subjects").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/study-materials/exam-types").permitAll()
+                        ///api/v1/study-materials/{id}, 족보삭제, 내 자료와 업로드 api부터는 인증 필요
+
                         .anyExchange().authenticated()
                 )
 

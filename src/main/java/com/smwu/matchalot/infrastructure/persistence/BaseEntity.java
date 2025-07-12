@@ -21,11 +21,30 @@ public abstract class BaseEntity {
 
     //R2DBCsms @PrePersist가 없다 -> 수동 설정
     public void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void onUpdate() {
+
+
+    public void setTimestamps() {
+        LocalDateTime now = LocalDateTime.now();
+
+        if (this.id == null) {
+            // 새로운 엔티티 - INSERT
+            this.createdAt = now;
+            this.updatedAt = now;
+        } else {
+            // 기존 엔티티 - UPDATE
+            this.updatedAt = now;
+        }
+    }
+
+    public void setUpdatedAt(LocalDateTime createdAt){
+        this.createdAt = createdAt;
         this.updatedAt = LocalDateTime.now();
     }
 }

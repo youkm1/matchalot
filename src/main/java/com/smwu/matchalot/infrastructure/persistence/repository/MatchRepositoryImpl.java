@@ -25,7 +25,11 @@ public class MatchRepositoryImpl implements MatchRepository {
     @Override
     public Mono<Match> save(Match match) {
         var entity = mapper.toEntity(match);
-        entity.onCreate();
+        if (match.getId() == null) {
+            entity.setTimestamps();
+        } else {
+            entity.setUpdatedAt(match.getCreatedAt());
+        }
         return r2dbcRepository.save(entity)
                 .map(mapper::toDomain);
     }

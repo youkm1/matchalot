@@ -8,6 +8,7 @@ import com.smwu.matchalot.domain.reposiotry.UserRepository;
 import com.smwu.matchalot.infrastructure.persistence.UserEntity;
 import com.smwu.matchalot.infrastructure.persistence.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
@@ -15,19 +16,23 @@ import reactor.core.publisher.Mono;
 
 
 @Repository
+@RequiredArgsConstructor
+@Slf4j
 public class UserRepositoryImpl implements UserRepository {
 
     private final UserR2dbcRepository r2dbcRepository;
     private final UserMapper userMapper;
 
-    public UserRepositoryImpl(UserR2dbcRepository r2dbcRepository, UserMapper userMapper) {
-        this.r2dbcRepository = r2dbcRepository;
-        this.userMapper = userMapper;
-    }
 
     @Override
     public Mono<User> save(User user) {
         UserEntity entity = userMapper.toEntity(user);
+
+        if (user.getId() == null) {
+            entity.setTimestamps();
+        } else {
+            entity.setUpdatedAt(user.getCreatedAt());
+        }
         return r2dbcRepository.save(entity)
                 .map(userMapper::toDomain);
     }

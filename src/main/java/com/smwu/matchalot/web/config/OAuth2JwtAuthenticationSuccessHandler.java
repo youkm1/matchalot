@@ -28,7 +28,8 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
     private final JwtTokenProvider jwtTokenProvider;
     private final UserService userService;
 
-    private String FRONTEND_URL="https://matchalot.duckdns.org";
+    @Value("${app.frontend.url}")
+    private String FRONTEND_URL;
 
     @Override
     public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange, Authentication authentication) {

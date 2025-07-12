@@ -19,6 +19,7 @@ import reactor.core.publisher.Mono;
 public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
     private final StudyMaterialR2dbcRepository r2dbcRepository;
     private final StudyMaterialMapper mapper;
+
     @Override
     public Mono<StudyMaterial> save(StudyMaterial studyMaterial) {
         log.info("입력 도메인: title={}, subject={}, id={}",
@@ -38,11 +39,19 @@ public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
 
         log.info("onCreate 후: createdAt={}, updatedAt={}", entity.getCreatedAt(), entity.getUpdatedAt());
 
-        if (studyMaterial.getId() != null) {
-            entity.setId(studyMaterial.getId().value());
+        if (studyMaterial.getId() == null) {
+            entity.setTimestamps();
+        } else {
+            entity.setUpdatedAt(studyMaterial.getCreatedAt());
         }
         return r2dbcRepository.save(entity)
-                .map(mapper::toDomain);
+                .map(mapper::toDomain)
+                .doOnSuccess(saved -> log.info("StudyMaterial 저장 완료: ID={}, title={}, status={}",
+                        saved.getId() != null ? saved.getId().value() : "null",
+                        saved.getTitle(),
+                        saved.getStatus()))
+                .doOnError(error -> log.error("StudyMaterial 저장 실패: title={}, error={}",
+                        studyMaterial.getTitle(), error.getMessage()));
 
 
     }
@@ -94,6 +103,7 @@ public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
         return r2dbcRepository.findAllByOrderByCreatedAtDesc() // 최신순
                 .map(mapper::toDomain);
     }
+
     @Override
     public Flux<StudyMaterial> findByStatus(MaterialStatus status) {
         return r2dbcRepository.findByStatus(status.name())

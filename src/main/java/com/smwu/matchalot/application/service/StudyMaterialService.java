@@ -79,21 +79,17 @@ public class StudyMaterialService {
 
     // ========== 관리자 승인 시스템 메서드들 ==========
 
-    /**
-     * 승인 대기 중인 족보 목록 조회 (관리자용)
-     */
+
     public Flux<StudyMaterial> getPendingMaterials() {
         return studyMaterialRepository.findByStatus(MaterialStatus.PENDING)
                 .doOnNext(material -> log.info("승인 대기 족보: {}", material.getTitle()));
     }
 
-    /**
-     * 족보 승인 (관리자용)
-     */
     public Mono<StudyMaterial> approveMaterial(StudyMaterialId materialId) {
         return studyMaterialRepository.findById(materialId)
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")))
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("족보 승인 중 문제가 발생하였습니다.")))
                 .flatMap(material -> {
+                    //새로운 객체 생성 대신 기준 상태를 변경하는 식으로
                     StudyMaterial approvedMaterial = material.approve();
 
                     return studyMaterialRepository.save(approvedMaterial)
@@ -103,9 +99,7 @@ public class StudyMaterialService {
                 });
     }
 
-    /**
-     * 족보 거절 (관리자용)
-     */
+
     public Mono<StudyMaterial> rejectMaterial(StudyMaterialId materialId, String reason) {
         return studyMaterialRepository.findById(materialId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")))
@@ -118,9 +112,7 @@ public class StudyMaterialService {
                 });
     }
 
-    /**
-     * 사용자 승격 확인 (준회원 → 정회원)
-     */
+
     private Mono<StudyMaterial> checkForUserPromotion(UserId uploaderId, StudyMaterial approvedMaterial) {
         return userService.getUserById(uploaderId)
                 .flatMap(user -> {
