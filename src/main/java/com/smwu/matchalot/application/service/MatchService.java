@@ -10,6 +10,7 @@ import com.smwu.matchalot.domain.model.vo.UserId;
 import com.smwu.matchalot.domain.reposiotry.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,6 +32,7 @@ public class MatchService {
                 )
                 .hasElements();
     }
+    @Transactional
     public Mono<Match> requestMatch(UserId requesterId,StudyMaterialId requesterMaterialId, UserId receiverId) {
         return validateMatchRequest(requesterId, requesterMaterialId,receiverId)
                 .flatMap(ignored->findPartnerMaterial(receiverId, requesterMaterialId))
