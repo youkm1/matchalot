@@ -9,6 +9,7 @@ import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
 import com.smwu.matchalot.domain.model.vo.UserId;
 import com.smwu.matchalot.domain.reposiotry.MatchRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MatchService {
     private final MatchRepository matchRepository;
     private final UserService userService;
@@ -122,15 +124,19 @@ public class MatchService {
 
     private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
         return studyMaterialService.getStudyMaterial(requesterMaterialId)
+                .doOnNext(material -> log.info("📖 요청자 자료 정보: subject={}, examType={}",
+                        material.getSubject().name(), material.getExamType().type()))
                 .flatMap(requesterMaterial ->
-                        studyMaterialService.getStudyMaterialsBySubjectAndExamType(
+                        studyMaterialService.getApprovedStudyMaterialsBySubjectAndExamType(  // ✅ APPROVED만 조회
                                         requesterMaterial.getSubject(),
                                         requesterMaterial.getExamType()
                                 )
+                                .doOnNext(material -> log.info("📚 승인된 동일 과목 자료 발견: uploaderId={}, materialId={}",
+                                        material.getUploaderId().value(), material.getId().value()))
                                 .filter(material -> material.isUploadedBy(partnerId))
                                 .next()
                                 .switchIfEmpty(Mono.error(new IllegalArgumentException("상대방이 해당 과목의 족보를 가지고 있지 않습니다")))
-                );
+                                .doOnError(error -> log.error("파트너 자료 찾기 실패: {}", error.getMessage())));
     }
     private Mono<Void> updateTrustScoresForGoodMatch(UserId requesterId, UserId partnerId) {
         return Mono.when(

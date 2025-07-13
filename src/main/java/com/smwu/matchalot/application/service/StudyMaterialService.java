@@ -50,6 +50,10 @@ public class StudyMaterialService {
         return studyMaterialRepository.findBySubject(subject);
     }
 
+    public Flux<StudyMaterial> getApprovedStudyMaterialsBySubjectAndExamType(Subject subject, ExamType examType) {
+        return studyMaterialRepository.findBySubjectAndExamTypeAndStatus(subject, examType, MaterialStatus.APPROVED);
+    }
+
     public Flux<StudyMaterial> getStudyMaterialsBySubjectAndExamType(Subject subject, ExamType examType) {
         return studyMaterialRepository.findBySubjectAndExamType(subject, examType);
     }
