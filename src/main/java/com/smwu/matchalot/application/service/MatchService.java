@@ -121,7 +121,12 @@ public class MatchService {
                 });
     }
 
-
+    private Mono<Void> updateTrustScoresForGoodMatch(UserId requesterId, UserId partnerId) {
+        return Mono.when(
+                userService.updateTrustScore(requesterId, true),
+                userService.updateTrustScore(partnerId, true)
+        );
+    }
     private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
         return studyMaterialService.getStudyMaterial(requesterMaterialId)
                 .doOnNext(material -> log.info("📖 요청자 자료 정보: subject={}, examType={}",
@@ -138,23 +143,28 @@ public class MatchService {
                                 .switchIfEmpty(Mono.error(new IllegalArgumentException("상대방이 해당 과목의 족보를 가지고 있지 않습니다")))
                                 .doOnError(error -> log.error("파트너 자료 찾기 실패: {}", error.getMessage())));
     }
-    private Mono<Void> updateTrustScoresForGoodMatch(UserId requesterId, UserId partnerId) {
-        return Mono.when(
-                userService.updateTrustScore(requesterId, true),
-                userService.updateTrustScore(partnerId, true)
-        );
-    }
+
     private Mono<Void> validateMatchRequest(UserId requesterId, StudyMaterialId requesterMaterialId, UserId partnerId) {
+        log.info("🔍🔍🔍 validateMatchRequest 시작");
+        log.info("👤 requesterId: {}", requesterId.value());
+        log.info("📚 requesterMaterialId: {}", requesterMaterialId.value());
+        log.info("👥 partnerId: {}", partnerId.value());
 
         if (requesterId.equals(partnerId)) {
+            log.error("자기 자신과 매칭 시도");
             return Mono.error(new IllegalArgumentException("본인과는 매칭할 수 없습니다"));
         }
-
+        log.info(" 자기 자신 매칭 체크 통과");
 
         return userService.getUserById(requesterId)
+                .doOnNext(user -> log.info("요청자 정보: userId={}, role={}, trustScore={}",
+                        user.getId().value(), user.getRole(), user.getTrustScore().value()))
                 .filter(User::participableInMatch)
+                .doOnNext(user -> log.info("participableInMatch 통과"))
                 .switchIfEmpty(Mono.error(new IllegalStateException("신뢰도가 부족하여 매칭할 수 없습니다")))
-                .then(validateRequesterMaterial(requesterId, requesterMaterialId));
+                .then(validateRequesterMaterial(requesterId, requesterMaterialId))
+                .doOnSuccess(ignored -> log.info(" validateMatchRequest 전체 성공"))
+                .doOnError(error -> log.error(" validateMatchRequest 실패: {}", error.getMessage()));
     }
 
     public Flux<Match> getReceivedRequests(UserId userId) {

@@ -17,8 +17,8 @@ public class MatchEntity extends BaseEntity{
     @Column("receiver_id")
     private Long receiverId;
 
-    @Column("requested_material_id")
-    private Long requestedMaterialId;
+    @Column("requester_material_id")
+    private Long requesterMaterialId;
 
     @Column("receiver_material_id")
     private Long receiverMaterialId;

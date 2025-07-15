@@ -15,7 +15,7 @@ public class MatchMapper {
                 entity.getId() != null ? MatchId.of(entity.getId()) : null,
                 UserId.of(entity.getRequesterId()),
                 UserId.of(entity.getReceiverId()),
-                StudyMaterialId.of(entity.getRequestedMaterialId()),
+                StudyMaterialId.of(entity.getRequesterMaterialId()),
                 StudyMaterialId.of(entity.getReceiverMaterialId()),
                 MatchStatus.valueOf(entity.getStatus()),
                 entity.getCreatedAt(),
@@ -31,7 +31,7 @@ public class MatchMapper {
         }
         entity.setRequesterId(domain.getRequesterId().value());
         entity.setReceiverId(domain.getReceiverId().value());
-        entity.setRequestedMaterialId(domain.getRequesterMaterialId().value());
+        entity.setRequesterMaterialId(domain.getRequesterMaterialId().value());
         entity.setReceiverMaterialId(domain.getReceiverMaterialId().value());
         entity.setStatus(domain.getStatus().name());
         entity.setCreatedAt(domain.getCreatedAt());
