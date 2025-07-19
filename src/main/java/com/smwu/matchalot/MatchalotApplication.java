@@ -7,7 +7,7 @@ import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 @SpringBootApplication
 @EnableR2dbcRepositories(basePackages = "com.smwu.matchalot.infrastructure.persistence.repository")
 public class MatchalotApplication {
-
+    //변경
     public static void main(String[] args) {
         SpringApplication.run(MatchalotApplication.class, args);
     }
