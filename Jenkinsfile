@@ -33,7 +33,7 @@ pipeline {
                 echo '백엔드 테스트 실행'
                 sh '''
                     chmod +x ./gradlew
-                    ./gradlew clean test jacocoTestReport
+                    ./gradlew clean test
                 '''
             }
             post {
