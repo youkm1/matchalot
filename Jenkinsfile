@@ -38,15 +38,7 @@ pipeline {
             }
             post {
                 always {
-                    publishTestResults testResultsPattern: 'build/test-results/test/*.xml'
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'build/reports/jacoco/test/html',
-                        reportFiles: 'index.html',
-                        reportName: 'Backend Coverage Report'
-                    ])
+                    junit testResults: 'build/test-results/test/*.xml', allowEmptyResults: true
                 }
             }
         }
