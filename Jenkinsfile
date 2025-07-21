@@ -162,6 +162,8 @@ pipeline {
                 def deployEnv = env.BRANCH_NAME == 'main' ? '프로덕션' : '스테이징'
                 def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
                 def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+                def branchName = env.BRANCH_NAME
+                def buildNumber = env.BUILD_NUMBER
                 
                 try {
                     sh """
@@ -175,12 +177,12 @@ pipeline {
                                  "fields": [
                                    {
                                      "name": "브랜치",
-                                     "value": "\\`${env.BRANCH_NAME}\\`",
+                                     "value": "`${branchName}`",
                                      "inline": true
                                    },
                                    {
                                      "name": "빌드 번호",
-                                     "value": "\\`#${env.BUILD_NUMBER}\\`",
+                                     "value": "`#${buildNumber}`",
                                      "inline": true
                                    },
                                    {
