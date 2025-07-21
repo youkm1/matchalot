@@ -1,3 +1,5 @@
+import groovy.json.JsonBuilder
+
 pipeline {
     agent any
     
@@ -56,7 +58,7 @@ pipeline {
                     try {
                         sh './gradlew dependencyCheckAnalyze || true'
                     } catch (Exception e) {
-                        echo "보안 스캔 완료 (경고 있음)"
+                        echo "보안 스캔 완료 (경고 있음): ${e.getMessage()}"
                     }
                 }
             }
@@ -105,8 +107,7 @@ pipeline {
                     def deployEnv = env.BRANCH_NAME == 'main' ? 'production' : 'staging'
                     
                     sh """
-                        # DevOps 서버에 배포
-                        ssh ${deployEnv}-server '
+                        ssh -o StrictHostKeyChecking=no ${deployEnv}-server '
                             cd /opt/matchalot/devops &&
                             docker-compose pull backend &&
                             docker-compose up -d backend
@@ -126,7 +127,7 @@ pipeline {
             steps {
                 echo '백엔드 헬스체크'
                 script {
-                    sleep(30)  // 서비스 시작 대기
+                    sleep(time: 30, unit: 'SECONDS')  // 서비스 시작 대기
                     
                     def maxRetries = 6
                     def retryCount = 0
@@ -135,15 +136,15 @@ pipeline {
                     while (retryCount < maxRetries && !healthOk) {
                         try {
                             sh '''
-                                curl -f https://matchalot.duckdns.org/api/actuator/health
-                                curl -f https://matchalot.duckdns.org/api/v1/study-materials/subjects
+                                curl --silent --show-error -f https://matchalot.duckdns.org/api/actuator/health
+                                curl --silent --show-error -f https://matchalot.duckdns.org/api/v1/study-materials/subjects
                             '''
                             healthOk = true
                             echo "백엔드 헬스체크 성공! (시도: ${retryCount + 1})"
                         } catch (Exception e) {
                             retryCount++
-                            echo "백엔드 헬스체크 실패, 재시도 중... (${retryCount}/${maxRetries})"
-                            sleep(15)
+                            echo "백엔드 헬스체크 실패, 재시도 중... (${retryCount}/${maxRetries}): ${e.getMessage()}"
+                            sleep(time: 15, unit: 'SECONDS')
                         }
                     }
                     
@@ -165,40 +166,27 @@ pipeline {
                 def branchName = env.BRANCH_NAME
                 def buildNumber = env.BUILD_NUMBER
                 
+                def embed = [
+                    embeds: [[
+                        title: "🚀 Backend 배포 성공!",
+                        description: "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
+                        color: 3066993,
+                        fields: [
+                            [name: "브랜치", value: "`${branchName}`", inline: true],
+                            [name: "빌드 번호", value: "`#${buildNumber}`", inline: true],
+                            [name: "커밋 작성자", value: "${commitAuthor}", inline: true],
+                            [name: "API 확인", value: "[Backend API](https://matchalot.duckdns.org/)", inline: false]
+                        ],
+                        timestamp: new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))
+                    ]]
+                ]
+                def jsonPayload = new JsonBuilder(embed).toString()
+                
                 try {
                     sh """
                         curl -H "Content-Type: application/json" \\
                              -X POST \\
-                             -d '{
-                               "embeds": [{
-                                 "title": "🚀 Backend 배포 성공!",
-                                 "description": "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
-                                 "color": 3066993,
-                                 "fields": [
-                                   {
-                                     "name": "브랜치",
-                                     "value": "`${branchName}`",
-                                     "inline": true
-                                   },
-                                   {
-                                     "name": "빌드 번호",
-                                     "value": "`#${buildNumber}`",
-                                     "inline": true
-                                   },
-                                   {
-                                     "name": "커밋 작성자",
-                                     "value": "${commitAuthor}",
-                                     "inline": true
-                                   },
-                                   {
-                                     "name": "API 확인",
-                                     "value": "[Backend API](https://matchalot.duckdns.org/)",
-                                     "inline": false
-                                   }
-                                 ],
-                                 "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'"
-                               }]
-                             }' \\
+                             -d '${jsonPayload}' \\
                              ${DISCORD_WEBHOOK}
                     """
                 } catch (Exception e) {
@@ -212,35 +200,26 @@ pipeline {
             script {
                 def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
                 
+                def embed = [
+                    embeds: [[
+                        title: "💥 Backend 배포 실패!",
+                        description: "백엔드 배포 중 오류가 발생했습니다.",
+                        color: 15158332,
+                        fields: [
+                            [name: "브랜치", value: "`${env.BRANCH_NAME}`", inline: true],
+                            [name: "빌드 번호", value: "`#${env.BUILD_NUMBER}`", inline: true],
+                            [name: "로그 확인", value: "[Jenkins 콘솔](${env.BUILD_URL}console)", inline: false]
+                        ],
+                        timestamp: new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))
+                    ]]
+                ]
+                def jsonPayload = new JsonBuilder(embed).toString()
+                
                 try {
                     sh """
                         curl -H "Content-Type: application/json" \\
                              -X POST \\
-                             -d '{
-                               "embeds": [{
-                                 "title": "💥 Backend 배포 실패!",
-                                 "description": "백엔드 배포 중 오류가 발생했습니다.",
-                                 "color": 15158332,
-                                 "fields": [
-                                   {
-                                     "name": "브랜치",
-                                     "value": "\\`${env.BRANCH_NAME}\\`",
-                                     "inline": true
-                                   },
-                                   {
-                                     "name": "빌드 번호",
-                                     "value": "\\`#${env.BUILD_NUMBER}\\`",
-                                     "inline": true
-                                   },
-                                   {
-                                     "name": "로그 확인",
-                                     "value": "[Jenkins 콘솔](${env.BUILD_URL}console)",
-                                     "inline": false
-                                   }
-                                 ],
-                                 "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'"
-                               }]
-                             }' \\
+                             -d '${jsonPayload}' \\
                              ${DISCORD_WEBHOOK}
                     """
                 } catch (Exception e) {
@@ -257,11 +236,12 @@ pipeline {
             script {
                 try {
                     sh '''
-                        docker image prune -f --filter "dangling=true"
+                        docker image prune -f --filter "dangling=true" || true
                         docker images ${IMAGE_NAME} --format "table {{.Repository}}:{{.Tag}}" | \\
                         grep -E "${IMAGE_NAME}:[0-9]+" | \\
+                        sort -r | \\
                         tail -n +6 | \\
-                        xargs -r docker rmi || true
+                        xargs --no-run-if-empty docker rmi || true
                     '''
                 } catch (Exception e) {
                     echo "Docker 정리 실패: ${e.getMessage()}"
@@ -270,4 +250,3 @@ pipeline {
         }
     }
 }
-
