@@ -172,7 +172,36 @@ pipeline {
                         timestamp: new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))
                     ]]
                 ]
-                def jsonPayload = new JsonBuilder(embed).toString()
+                def jsonPayload = """{
+                "embeds": [{
+                    "title": "🚀 Backend 배포 성공!",
+                    "description": "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
+                    "color": 3066993,
+                    "fields": [
+                        {
+                            "name": "브랜치",
+                            "value": "`${branchName}`",
+                            "inline": true
+                        },
+                        {
+                            "name": "빌드 번호",
+                            "value": "`#${buildNumber}`",
+                            "inline": true
+                        },
+                        {
+                            "name": "커밋 작성자",
+                            "value": "${commitAuthor}",
+                            "inline": true
+                        },
+                        {
+                            "name": "API 확인",
+                            "value": "[Backend API](https://matchalot.duckdns.org/)",
+                            "inline": false
+                        }
+                    ],
+                    "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))}"
+                }]
+            }"""
                 
                 try {
                     sh """
@@ -205,7 +234,36 @@ pipeline {
                         timestamp: new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))
                     ]]
                 ]
-                def jsonPayload = new JsonBuilder(embed).toString()
+                def jsonPayload = """{
+                "embeds": [{
+                    "title": "🚀 Backend 배포 성공!",
+                    "description": "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
+                    "color": 3066993,
+                    "fields": [
+                        {
+                            "name": "브랜치",
+                            "value": "`${branchName}`",
+                            "inline": true
+                        },
+                        {
+                            "name": "빌드 번호",
+                            "value": "`#${buildNumber}`",
+                            "inline": true
+                        },
+                        {
+                            "name": "커밋 작성자",
+                            "value": "${commitAuthor}",
+                            "inline": true
+                        },
+                        {
+                            "name": "API 확인",
+                            "value": "[Backend API](https://matchalot.duckdns.org/)",
+                            "inline": false
+                        }
+                    ],
+                    "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))}"
+                }]
+            }"""
                 
                 try {
                     sh """
