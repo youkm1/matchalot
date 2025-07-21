@@ -175,17 +175,17 @@ pipeline {
                                  "fields": [
                                    {
                                      "name": "브랜치",
-                                     "value": "`${env.BRANCH_NAME}`",
+                                     "value": "\\`${env.BRANCH_NAME}\\`",
                                      "inline": true
                                    },
                                    {
                                      "name": "빌드 번호",
-                                     "value": "`#${env.BUILD_NUMBER}`",
+                                     "value": "\\`#${env.BUILD_NUMBER}\\`",
                                      "inline": true
                                    },
                                    {
                                      "name": "커밋 작성자",
-                                     "value": "' + commitAuthor + '",
+                                     "value": "${commitAuthor}",
                                      "inline": true
                                    },
                                    {
@@ -222,12 +222,12 @@ pipeline {
                                  "fields": [
                                    {
                                      "name": "브랜치",
-                                     "value": "`${env.BRANCH_NAME}`",
+                                     "value": "\\`${env.BRANCH_NAME}\\`",
                                      "inline": true
                                    },
                                    {
                                      "name": "빌드 번호",
-                                     "value": "`#${env.BUILD_NUMBER}`",
+                                     "value": "\\`#${env.BUILD_NUMBER}\\`",
                                      "inline": true
                                    },
                                    {
