@@ -185,12 +185,12 @@ pipeline {
                                    },
                                    {
                                      "name": "커밋 작성자",
-                                     "value": "${commitAuthor}",
+                                     "value": "' + commitAuthor + '",
                                      "inline": true
                                    },
                                    {
                                      "name": "API 확인",
-                                     "value": "[Backend API](https://matchalot.duckdns.org/api)",
+                                     "value": "[Backend API](https://matchalot.duckdns.org/)",
                                      "inline": false
                                    }
                                  ],
