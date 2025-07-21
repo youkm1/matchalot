@@ -1,6 +1,5 @@
 import groovy.json.JsonBuilder
 
-
 pipeline {
     agent any
     
@@ -153,58 +152,44 @@ pipeline {
         success {
             echo '백엔드 배포 성공!'
             script {
-                def deployEnv = env.BRANCH_NAME == 'main' ? '프로덕션' : '스테이징'
-                def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
-                def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
-                def branchName = env.BRANCH_NAME
-                def buildNumber = env.BUILD_NUMBER
-                
-                def embed = [
-                    embeds: [[
-                        title: "🚀 Backend 배포 성공!",
-                        description: "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
-                        color: 3066993,
-                        fields: [
-                            [name: "브랜치", value: "`${branchName}`", inline: true],
-                            [name: "빌드 번호", value: "`#${buildNumber}`", inline: true],
-                            [name: "커밋 작성자", value: "${commitAuthor}", inline: true],
-                            [name: "API 확인", value: "[Backend API](https://matchalot.duckdns.org/)", inline: false]
-                        ],
-                        timestamp: new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))
-                    ]]
-                ]
-                def jsonPayload = """{
-                "embeds": [{
-                    "title": "🚀 Backend 배포 성공!",
-                    "description": "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
-                    "color": 3066993,
-                    "fields": [
-                        {
-                            "name": "브랜치",
-                            "value": "`${branchName}`",
-                            "inline": true
-                        },
-                        {
-                            "name": "빌드 번호",
-                            "value": "`#${buildNumber}`",
-                            "inline": true
-                        },
-                        {
-                            "name": "커밋 작성자",
-                            "value": "${commitAuthor}",
-                            "inline": true
-                        },
-                        {
-                            "name": "API 확인",
-                            "value": "[Backend API](https://matchalot.duckdns.org/)",
-                            "inline": false
-                        }
-                    ],
-                    "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))}"
-                }]
-            }"""
-                
                 try {
+                    def deployEnv = env.BRANCH_NAME == 'main' ? '프로덕션' : '스테이징'
+                    def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+                    def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+                    def branchName = env.BRANCH_NAME
+                    def buildNumber = env.BUILD_NUMBER
+                    
+                    def jsonPayload = """{
+                    "embeds": [{
+                        "title": "🚀 Backend 배포 성공!",
+                        "description": "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
+                        "color": 3066993,
+                        "fields": [
+                            {
+                                "name": "브랜치",
+                                "value": "`${branchName}`",
+                                "inline": true
+                            },
+                            {
+                                "name": "빌드 번호",
+                                "value": "`#${buildNumber}`",
+                                "inline": true
+                            },
+                            {
+                                "name": "커밋 작성자",
+                                "value": "${commitAuthor}",
+                                "inline": true
+                            },
+                            {
+                                "name": "API 확인",
+                                "value": "[Backend API](https://matchalot.duckdns.org/)",
+                                "inline": false
+                            }
+                        ],
+                        "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))}"
+                    }]
+                }"""
+                    
                     sh """
                         curl -H "Content-Type: application/json" \\
                              -X POST \\
@@ -220,53 +205,46 @@ pipeline {
         failure {
             echo '백엔드 배포 실패!'
             script {
-                def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
-                
-                def embed = [
-                    embeds: [[
-                        title: "💥 Backend 배포 실패!",
-                        description: "백엔드 배포 중 오류가 발생했습니다.",
-                        color: 15158332,
-                        fields: [
-                            [name: "브랜치", value: "`${env.BRANCH_NAME}`", inline: true],
-                            [name: "빌드 번호", value: "`#${env.BUILD_NUMBER}`", inline: true],
-                            [name: "로그 확인", value: "[Jenkins 콘솔](${env.BUILD_URL}console)", inline: false]
-                        ],
-                        timestamp: new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))
-                    ]]
-                ]
-                def jsonPayload = """{
-                "embeds": [{
-                    "title": "🚀 Backend 배포 성공!",
-                    "description": "**${deployEnv}** 환경에 백엔드가 배포되었습니다.",
-                    "color": 3066993,
-                    "fields": [
-                        {
-                            "name": "브랜치",
-                            "value": "`${branchName}`",
-                            "inline": true
-                        },
-                        {
-                            "name": "빌드 번호",
-                            "value": "`#${buildNumber}`",
-                            "inline": true
-                        },
-                        {
-                            "name": "커밋 작성자",
-                            "value": "${commitAuthor}",
-                            "inline": true
-                        },
-                        {
-                            "name": "API 확인",
-                            "value": "[Backend API](https://matchalot.duckdns.org/)",
-                            "inline": false
-                        }
-                    ],
-                    "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))}"
-                }]
-            }"""
-                
                 try {
+                    // ✅ 변수들을 명시적으로 정의
+                    def deployEnv = env.BRANCH_NAME == 'main' ? '프로덕션' : '스테이징'
+                    def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+                    def branchName = env.BRANCH_NAME ?: 'unknown'
+                    def buildNumber = env.BUILD_NUMBER ?: 'unknown'
+                    def buildUrl = env.BUILD_URL ?: 'unknown'
+                    
+                    // ✅ 실패 메시지로 수정
+                    def jsonPayload = """{
+                    "embeds": [{
+                        "title": "💥 Backend 배포 실패!",
+                        "description": "**${deployEnv}** 환경 백엔드 배포 중 오류가 발생했습니다.",
+                        "color": 15158332,
+                        "fields": [
+                            {
+                                "name": "브랜치",
+                                "value": "`${branchName}`",
+                                "inline": true
+                            },
+                            {
+                                "name": "빌드 번호",
+                                "value": "`#${buildNumber}`",
+                                "inline": true
+                            },
+                            {
+                                "name": "커밋 작성자",
+                                "value": "${commitAuthor}",
+                                "inline": true
+                            },
+                            {
+                                "name": "로그 확인",
+                                "value": "[Jenkins 콘솔](${buildUrl}console)",
+                                "inline": false
+                            }
+                        ],
+                        "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone("UTC"))}"
+                    }]
+                }"""
+                    
                     sh """
                         curl -H "Content-Type: application/json" \\
                              -X POST \\
@@ -280,12 +258,17 @@ pipeline {
         }
         
         always {
-            archiveArtifacts artifacts: 'build/reports/**/*', allowEmptyArchive: true
-            archiveArtifacts artifacts: 'build/libs/*.jar', allowEmptyArchive: true
-            
-            // Docker 정리
             script {
                 try {
+                    // 아티팩트 아카이브
+                    archiveArtifacts artifacts: 'build/reports/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'build/libs/*.jar', allowEmptyArchive: true
+                } catch (Exception e) {
+                    echo "아티팩트 아카이브 실패: ${e.getMessage()}"
+                }
+                
+                try {
+                    // Docker 정리
                     sh '''
                         docker image prune -f --filter "dangling=true" || true
                         docker images ${IMAGE_NAME} --format "table {{.Repository}}:{{.Tag}}" | \\
