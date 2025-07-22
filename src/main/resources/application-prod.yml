@@ -41,7 +41,8 @@ jwt:
 app:
   frontend:
     # 이것도 공개 정보
-    url: https://matchalot.duckdns.org
+    url: https://matchalot.vercel.app/
+
 
 logging:
   level:

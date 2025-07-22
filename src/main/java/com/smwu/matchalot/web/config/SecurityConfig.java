@@ -37,7 +37,6 @@ public class SecurityConfig {
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-
     private final JwtTokenProvider jwtTokenProvider;
 
     private final OAuth2JwtAuthenticationSuccessHandler oauth2SuccessHandler;
@@ -68,6 +67,7 @@ public class SecurityConfig {
                             "http://127.0.0.1:3000",
                             frontendUrl
                     ));
+
                     config.setAllowedMethods(Arrays.asList(
                             "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
                     ));
