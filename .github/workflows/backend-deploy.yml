@@ -1,5 +1,4 @@
-# .github/workflows/deploy.yml
-name: Deploy using VM's .env file
+name: Deploy 
 
 on:
   push:
@@ -17,47 +16,47 @@ jobs:
     - name: Deploy to Azure VM
       uses: appleboy/ssh-action@v0.1.10
       with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
+        host: ${{ secrets.VM_HOST }}
+        username: ${{ secrets.VM_USERNAME }}
+        key: ${{ secrets.VM_SSH_KEY }}
         port: 22
         timeout: 300s
         script: |
-          cd /home/youkm0806/matchalot
+          cd /home/youkm0806/matchalot/backend
           
           # Git 최신 코드 가져오기
-          echo "📥 코드 업데이트 중..."
+          echo "코드 업데이트 중..."
           git stash || true
           git pull origin main
           
           # .env 파일 확인
           if [ ! -f .env ]; then
-            echo "❌ .env 파일이 없습니다"
+            echo ".env 파일이 없습니다"
             exit 1
           fi
           
           # 빌드
-          echo "📦 빌드 중..."
+          echo "빌드 중..."
           ./gradlew clean build -x test
           
           # Docker Compose로 배포
-          echo "🐳 Docker Compose 배포 중..."
+          echo "Docker Compose 배포 중..."
           docker-compose down || true
           docker-compose up -d --build
           
           # 헬스체크
-          echo "🏥 헬스체크 중..."
+          echo "헬스체크 중..."
           sleep 60
           
           for i in {1..10}; do
             if curl -f -s http://localhost:8080/actuator/health; then
-              echo "✅ 배포 성공!"
+              echo "배포 성공!"
               exit 0
             fi
-            echo "⏳ 헬스체크 재시도... ($i/10)"
+            echo "헬스체크 재시도... ($i/10)"
             sleep 15
           done
           
-          echo "❌ 헬스체크 실패"
+          echo "헬스체크 실패"
           docker-compose logs --tail 30
           exit 1
