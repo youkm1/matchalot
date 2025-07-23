@@ -1,4 +1,4 @@
-name: Backend Deploy to Production
+name: Backend Deploy 
 
 on:
   push:
@@ -83,57 +83,161 @@ jobs:
         docker build -t matchalot-backend:latest .
         docker tag matchalot-backend:latest matchalot-backend:${{ github.sha }}
         
+    - name: Verify secrets
+      run: |
+        echo "Checking secrets availability..."
+        if [ -z "${{ secrets.SERVER_HOST }}" ]; then
+          echo "SERVER_HOST secret is missing"
+          exit 1
+        fi
+        if [ -z "${{ secrets.SERVER_USER }}" ]; then
+          echo "SERVER_USER secret is missing"
+          exit 1
+        fi
+        if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then
+          echo "SERVER_SSH_KEY secret is missing"
+          exit 1
+        fi
+        echo "All required secrets are available"
+        echo "SERVER_HOST: ${{ secrets.SERVER_HOST }}"
+        echo "SERVER_USER: ${{ secrets.SERVER_USER }}"
+        echo "SSH Key length: $(echo '${{ secrets.SERVER_SSH_KEY }}' | wc -c) characters"
+        
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT }}
+        port: ${{ secrets.SERVER_PORT || '22' }}
+        timeout: 300s
+        command_timeout: 600s
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || '22' }}
+        timeout: 300s
+        command_timeout: 600s
         script: |
-          # 기존 컨테이너 중지 및 제거
+          echo "Starting deployment..."
+          echo "Current directory: $(pwd)"
+          echo "Current user: $(whoami)"
+          
+          # 프로젝트 디렉토리 설정
+          PROJECT_DIR="/home/youkm0806/matchalot"
+          DEVOPS_DIR="${PROJECT_DIR}/devops"
+          
+          # 기존 컨테이너 중지 (docker-compose 이름 사용)
+          echo "Stopping existing containers..."
+          cd $DEVOPS_DIR || echo "DevOps directory not found yet"
+          sudo docker-compose down || true
+          
+          # 또는 개별 컨테이너 중지
           sudo docker stop matchalot-backend || true
           sudo docker rm matchalot-backend || true
           
-          # 기존 이미지 제거 (선택적)
+          # 기존 이미지 제거
+          echo "🗑Removing old images..."
+          sudo docker rmi devops-backend:latest || true
           sudo docker rmi matchalot-backend:latest || true
           
-          # 새 코드 pull
-          cd /home/ubuntu/matchalot
-          git pull origin main
+          # 프로젝트 디렉토리 생성 및 이동
+          echo "📁 Setting up project directory..."
+          mkdir -p $PROJECT_DIR
+          cd $PROJECT_DIR
           
-          # Docker 이미지 빌드
-          sudo docker build -t matchalot-backend:latest .
-          
-          # .env 파일이 있는지 확인
-          if [ -f .env ]; then
-            echo ".env 파일 발견됨"
-            # .env 파일을 사용하여 컨테이너 실행
-            sudo docker run -d \
-              --name matchalot-backend \
-              --restart unless-stopped \
-              -p 8080:8080 \
-              --env-file .env \
-              matchalot-backend:latest
+          # Git 리포지토리 초기화 또는 업데이트
+          if [ -d ".git" ]; then
+            echo "Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+            git pull origin main
           else
-            echo ".env 파일이 없습니다. 기본 환경변수로 실행합니다."
-            # 기본 환경변수로 실행
-            sudo docker run -d \
-              --name matchalot-backend \
-              --restart unless-stopped \
-              -p 8080:8080 \
-              -e SPRING_PROFILES_ACTIVE=prod \
-              matchalot-backend:latest
+            echo "Cloning repository..."
+            git clone https://github.com/youkm0806/matchalot.git .
           fi
           
-          sleep 30
-          curl -f http://localhost:8080/actuator/health || exit 1
+          # .env 파일 확인 (루트 디렉토리에 있음)
+          if [ -f .env ]; then
+            echo ".env 파일 발견"
+            echo ".env 파일 내용 확인 (민감한 정보 제외):"
+            grep -v -E "(PASSWORD|SECRET|KEY)" .env | head -5 || true
+          else
+            echo ".env 파일이 없습니다"
+            ls -la
+          fi
           
-          echo "📋 컨테이너 로그 확인:"
-          sudo docker logs --tail 10 matchalot-backend
+          # devops 디렉토리로 이동
+          echo "📁 Moving to devops directory..."
+          cd $DEVOPS_DIR
+          
+          # docker-compose 파일 확인
+          if [ -f docker-compose.yml ]; then
+            echo "docker-compose.yml 파일 발견됨"
+          else
+            echo "docker-compose.yml 파일이 없습니다"
+            ls -la
+            exit 1
+          fi
+          
+          # .env 파일을 devops 디렉토리로 복사 (필요한 경우)
+          if [ -f ../.env ] && [ ! -f .env ]; then
+            echo "Copying .env file to devops directory..."
+            cp ../.env .env
+          fi
+          
+          # Docker Compose로 빌드 및 실행
+          echo "🔨 Building and starting services with docker-compose..."
+          sudo docker-compose build backend
+          sudo docker-compose up -d backend
+          
+          # 컨테이너 상태 확인
+          echo "🔍 Checking container status..."
+          sudo docker-compose ps
+          
+          # 백엔드 컨테이너가 실행 중인지 확인
+          if sudo docker ps | grep matchalot-backend; then
+            echo "Backend container is running"
+          else
+            echo "Backend container is not running. Checking logs..."
+            sudo docker-compose logs backend
+            exit 1
+          fi
+          
+          # 헬스체크
+          echo "Performing health check..."
+          for i in {1..12}; do
+            echo "Health check attempt $i/12..."
+            if curl -f http://localhost:8080/actuator/health; then
+              echo "Health check passed!"
+              break
+            elif [ $i -eq 12 ]; then
+              echo "Health check failed after 12 attempts"
+              echo "Container logs:"
+              sudo docker-compose logs --tail 20 backend
+              exit 1
+            else
+              echo "Waiting 10 seconds before next attempt..."
+              sleep 10
+            fi
+          done
+          
+          # 최종 상태 확인
+          echo "Final container status:"
+          sudo docker-compose ps
+          
+          # 컨테이너 로그 확인 (최근 몇 줄만)
+          echo "Backend logs (최근 10줄):"
+          sudo docker-compose logs --tail 10 backend
           
           # 오래된 이미지 정리
+          echo "old images..."
           sudo docker image prune -f
+          
+          echo "Deployment completed successfully!"
           
     - name: Notify deployment success
       if: success()
