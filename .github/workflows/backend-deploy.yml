@@ -1,0 +1,330 @@
+# .github/workflows/backend-deploy.yml
+# 🎯 기존 Docker Compose 유지 + Jenkins 대체
+name: Backend CI/CD (Docker Compose Compatible)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'build.gradle'
+      - 'gradle/**'
+      - 'Dockerfile'
+  pull_request:
+    branches: [main]
+
+env:
+  # 🎛️ 레지스트리 선택 (기존 Docker Hub 방식 유지)
+  IMAGE_NAME: matchalot-backend
+  # Option 1: Docker Hub (기존과 동일)
+  DOCKER_REGISTRY: ""
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/matchalot-backend
+  
+  # Option 2: GHCR (무료, 제한 없음)
+  # DOCKER_REGISTRY: ghcr.io
+  # DOCKER_IMAGE: ghcr.io/${{ github.repository }}/matchalot-backend
+
+jobs:
+  # 🧪 테스트 & 빌드
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        
+      - name: Run tests
+        run: ./gradlew clean test
+        
+      - name: Build JAR
+        run: ./gradlew build -x test
+        
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: build/reports/
+          
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-artifact
+          path: build/libs/*.jar
+
+  # 🐳 Docker 이미지 빌드 & 푸시 (기존 Jenkins 역할)
+  docker-build-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: jar-artifact
+          path: build/libs/
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      # Docker Hub 로그인 (기존 방식)
+      - name: Login to Docker Hub
+        if: env.DOCKER_REGISTRY == ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          
+      # GHCR 로그인 (대안)
+      - name: Login to GitHub Container Registry
+        if: env.DOCKER_REGISTRY == 'ghcr.io'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      # 🏷️ Docker 메타데이터 생성 (태그 관리)
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.run_number }}
+            
+      # 🔨 Docker 이미지 빌드 & 푸시 (기존 Jenkins와 동일한 결과)
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64  # 단일 플랫폼으로 빌드 시간 단축
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # 🚀 빌드 최적화
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+  # 🚀 서버 배포 (기존 docker-compose 방식 완전 호환)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    environment:
+      name: production
+      url: https://matchalot.duckdns.org
+      
+    steps:
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            # 🎯 기존 Jenkins 스크립트와 동일한 로직
+            cd /opt/matchalot/devops
+            
+            # 환경변수 로드 (기존 설정 유지)
+            if [ -f .env ]; then
+                source .env
+            fi
+            
+            # 🔄 기존과 동일한 배포 방식
+            echo "🐳 새 Docker 이미지 다운로드 중..."
+            docker-compose pull backend
+            
+            echo "🚀 백엔드 서비스 재시작 중..."
+            docker-compose up -d backend
+            
+            echo "🧹 사용하지 않는 이미지 정리..."
+            docker image prune -f
+            
+            echo "📊 배포 완료 - 컨테이너 상태:"
+            docker-compose ps backend
+            
+      - name: Health check
+        run: |
+          echo "⏳ 서비스 시작 대기 중..."
+          sleep 30
+          
+          max_retries=6
+          retry_count=0
+          
+          while [ $retry_count -lt $max_retries ]; do
+            echo "🏥 헬스체크 시도 $((retry_count + 1))/$max_retries..."
+            
+            if curl --silent --fail https://matchalot.duckdns.org/actuator/health && \
+               curl --silent --fail https://matchalot.duckdns.org/api/v1/study-materials/subjects; then
+              echo "✅ 배포 성공! 서비스가 정상 작동 중입니다."
+              exit 0
+            fi
+            
+            retry_count=$((retry_count + 1))
+            echo "❌ 헬스체크 실패, 15초 후 재시도..."
+            sleep 15
+          done
+          
+          echo "💥 배포 실패! 헬스체크를 통과하지 못했습니다."
+          exit 1
+
+  # 📊 배포 후 모니터링 (기존 Jenkins의 정리 작업)
+  post-deploy-cleanup:
+    name: Post-Deploy Monitoring & Cleanup
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: always()
+    
+    steps:
+      - name: Server cleanup and monitoring
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            cd /opt/matchalot/devops
+            
+            echo "📊 현재 시스템 상태:"
+            echo "🐳 실행 중인 컨테이너:"
+            docker-compose ps
+            
+            echo "💾 메모리 사용량:"
+            free -h
+            
+            echo "💿 디스크 사용량:"
+            df -h /
+            
+            echo "🔍 백엔드 로그 (최근 10줄):"
+            docker-compose logs --tail=10 backend
+            
+            # 🧹 시스템 정리 (기존 Jenkins 정리 작업과 동일)
+            echo "🧹 Docker 시스템 정리..."
+            docker system prune -f --volumes || true
+            
+            # 오래된 이미지 정리 (5개 이상 보관 시)
+            echo "🗑️ 오래된 이미지 정리..."
+            docker images ${{ env.DOCKER_IMAGE }} --format "table {{.Repository}}:{{.Tag}}" | \
+            grep -E "${{ env.DOCKER_IMAGE }}:[0-9]+" | \
+            sort -r | \
+            tail -n +6 | \
+            xargs --no-run-if-empty docker rmi || true
+
+  # 🎉 Discord 알림 (기존 Jenkins 알림과 동일)
+  notify-discord:
+    name: Discord Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-production, post-deploy-cleanup]
+    if: always()
+    
+    steps:
+      - name: Send Discord notification
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          # 배포 결과 판단
+          if [[ "${{ needs.deploy-production.result }}" == "success" ]]; then
+            TITLE="🚀 Backend 배포 성공!"
+            COLOR=3066993
+            DESCRIPTION="프로덕션 환경에 성공적으로 배포되었습니다."
+            EMOJI="✅"
+          else
+            TITLE="💥 Backend 배포 실패!"
+            COLOR=15158332
+            DESCRIPTION="배포 과정에서 오류가 발생했습니다."
+            EMOJI="❌"
+          fi
+          
+          # 커밋 정보
+          COMMIT_AUTHOR="${{ github.actor }}"
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
+          BUILD_NUMBER="${{ github.run_number }}"
+          
+          # Discord 메시지 (기존 Jenkins 알림과 동일한 정보)
+          cat << EOF > discord_payload.json
+          {
+            "embeds": [{
+              "title": "${TITLE}",
+              "description": "${DESCRIPTION}",
+              "color": ${COLOR},
+              "fields": [
+                {
+                  "name": "🎯 배포 방식",
+                  "value": "Docker Compose (기존 방식 유지)",
+                  "inline": false
+                },
+                {
+                  "name": "브랜치",
+                  "value": "\`${{ github.ref_name }}\`",
+                  "inline": true
+                },
+                {
+                  "name": "빌드 번호",
+                  "value": "\`#${BUILD_NUMBER}\`",
+                  "inline": true
+                },
+                {
+                  "name": "커밋 작성자",
+                  "value": "${COMMIT_AUTHOR}",
+                  "inline": true
+                },
+                {
+                  "name": "커밋 메시지",
+                  "value": "${COMMIT_MSG}",
+                  "inline": false
+                },
+                {
+                  "name": "API 확인",
+                  "value": "[Backend API](https://matchalot.duckdns.org)",
+                  "inline": false
+                },
+                {
+                  "name": "💰 리소스 절약",
+                  "value": "Jenkins 서버 제거로 월 $30-50 절약!",
+                  "inline": false
+                }
+              ],
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+            }]
+          }
+          EOF
+          
+          # Discord 웹훅 전송
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d @discord_payload.json \
+               "$WEBHOOK_URL" || echo "Discord 알림 전송 실패"
