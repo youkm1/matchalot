@@ -1,293 +1,63 @@
-name: Backend Deploy to Production
+# .github/workflows/deploy.yml
+name: Deploy using VM's .env file
 
 on:
   push:
     branches: [ main ]
-    paths:
+    paths: 
       - 'src/**'
       - 'build.gradle'
-      - 'settings.gradle'
       - 'Dockerfile'
-      - 'devops/**'
-      - '.github/workflows/backend-deploy.yml'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'src/**'
-      - 'build.gradle'
-      - 'settings.gradle'
-      - 'Dockerfile'
-      - 'devops/**'
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
-    name: Run Tests
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
+    - name: Deploy to Azure VM
+      uses: appleboy/ssh-action@v0.1.10
       with:
-        java-version: '17'
-        distribution: 'temurin'
-        
-    - name: Cache Gradle dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
-        
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
-        
-    - name: Run tests with test profile
-      run: ./gradlew test --info
-      env:
-        SPRING_PROFILES_ACTIVE: test
-      
-  build-and-deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    name: Build and Deploy
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        
-    - name: Cache Gradle dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
-          
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
-        
-    - name: Build application for production
-      run: ./gradlew clean build -x test --info
-      env:
-        SPRING_PROFILES_ACTIVE: prod
-        
-    - name: Verify build artifacts
-      run: |
-        echo "📦 Build artifacts:"
-        ls -la build/libs/
-        echo "✅ JAR file created: $(ls build/libs/*.jar)"
-        
-    - name: Create deployment package
-      run: |
-        echo "📦 Creating deployment package..."
-        mkdir -p deploy/libs
-        cp build/libs/*.jar deploy/libs/
-        cp Dockerfile deploy/
-        cp -r gradle deploy/
-        cp gradlew deploy/
-        cp build.gradle deploy/
-        cp settings.gradle deploy/
-        echo "✅ Deployment package ready"
-        
-    - name: Upload deployment package
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT || '22' }}
-        source: "deploy/*"
-        target: "/tmp/matchalot-deploy"
-        rm: true
-        
-    - name: Verify secrets
-      run: |
-        echo "🔍 Checking secrets availability..."
-        if [ -z "${{ secrets.SERVER_HOST }}" ]; then
-          echo "❌ SERVER_HOST secret is missing"
-          exit 1
-        fi
-        if [ -z "${{ secrets.SERVER_USER }}" ]; then
-          echo "❌ SERVER_USER secret is missing"
-          exit 1
-        fi
-        if [ -z "${{ secrets.SERVER_SSH_KEY }}" ]; then
-          echo "❌ SERVER_SSH_KEY secret is missing"
-          exit 1
-        fi
-        echo "✅ All required secrets are available"
-        echo "🖥️  SERVER_HOST: ${{ secrets.SERVER_HOST }}"
-        echo "👤 SERVER_USER: ${{ secrets.SERVER_USER }}"
-        echo "🔐 SSH Key length: $(echo '${{ secrets.SERVER_SSH_KEY }}' | wc -c) characters"
-        
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT || '22' }}
+        host: ${{ secrets.VM_HOST }}
+        username: ${{ secrets.VM_USERNAME }}
+        key: ${{ secrets.VM_SSH_KEY }}
+        port: 22
         timeout: 300s
-        command_timeout: 600s
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT || '22' }}
-        timeout: 300s
-        command_timeout: 600s
         script: |
-          echo "🚀 Starting deployment..."
-          echo "📍 Current directory: $(pwd)"
-          echo "👤 Current user: $(whoami)"
+          cd /home/youkm0806/matchalot
           
-          # 프로젝트 디렉토리 설정
-          PROJECT_DIR="/home/youkm0806/matchalot"
-          DEVOPS_DIR="${PROJECT_DIR}/devops"
+          # Git 최신 코드 가져오기
+          echo "📥 코드 업데이트 중..."
+          git stash || true
+          git pull origin main
           
-          # 기존 컨테이너 중지 (docker-compose 이름 사용)
-          echo "🛑 Stopping existing containers..."
-          cd $DEVOPS_DIR || echo "DevOps directory not found yet"
-          sudo docker-compose down || true
-          
-          # 또는 개별 컨테이너 중지
-          sudo docker stop matchalot-backend || true
-          sudo docker rm matchalot-backend || true
-          
-          # 기존 이미지 제거
-          echo "🗑️  Removing old images..."
-          sudo docker rmi devops-backend:latest || true
-          sudo docker rmi matchalot-backend:latest || true
-          
-          # 프로젝트 디렉토리 생성 및 이동
-          echo "📁 Setting up project directory..."
-          mkdir -p $PROJECT_DIR
-          cd $PROJECT_DIR
-          
-          # Git 리포지토리 업데이트
-          if [ -d ".git" ]; then
-            echo "📥 Pulling latest code..."
-            git fetch origin
-            git reset --hard origin/main
-            git pull origin main
-          else
-            echo "🔄 Cloning repository..."
-            git clone https://github.com/youkm0806/matchalot.git .
-          fi
-          
-          # 빌드된 JAR 파일 복사 (GitHub Actions에서 빌드됨)
-          if [ -d "/tmp/matchalot-deploy/deploy" ]; then
-            echo "📦 Using pre-built JAR from GitHub Actions..."
-            cp -r /tmp/matchalot-deploy/deploy/* .
-            rm -rf /tmp/matchalot-deploy
-          else
-            echo "⚠️  No pre-built JAR found, will build on server..."
-          fi
-          
-          # .env 파일 확인 (루트 디렉토리에 있음)
-          if [ -f .env ]; then
-            echo "✅ .env 파일 발견됨 (루트 디렉토리)"
-            echo "📋 .env 파일 내용 확인 (민감한 정보 제외):"
-            grep -v -E "(PASSWORD|SECRET|KEY)" .env | head -5 || true
-          else
+          # .env 파일 확인
+          if [ ! -f .env ]; then
             echo "❌ .env 파일이 없습니다"
-            ls -la
-          fi
-          
-          # devops 디렉토리로 이동
-          echo "📁 Moving to devops directory..."
-          cd $DEVOPS_DIR
-          
-          # docker-compose 파일 확인
-          if [ -f docker-compose.yml ]; then
-            echo "✅ docker-compose.yml 파일 발견됨"
-          else
-            echo "❌ docker-compose.yml 파일이 없습니다"
-            ls -la
             exit 1
           fi
           
-          # .env 파일을 devops 디렉토리로 복사 (필요한 경우)
-          if [ -f ../.env ] && [ ! -f .env ]; then
-            echo "📋 Copying .env file to devops directory..."
-            cp ../.env .env
-          fi
+          # 빌드
+          echo "📦 빌드 중..."
+          ./gradlew clean build -x test
           
-          # Docker Compose로 빌드 및 실행
-          echo "🔨 Building and starting services with docker-compose..."
-          sudo docker-compose build backend
-          sudo docker-compose up -d backend
-          
-          # 컨테이너 상태 확인
-          echo "🔍 Checking container status..."
-          sudo docker-compose ps
-          
-          # 백엔드 컨테이너가 실행 중인지 확인
-          if sudo docker ps | grep matchalot-backend; then
-            echo "✅ Backend container is running"
-          else
-            echo "❌ Backend container is not running. Checking logs..."
-            sudo docker-compose logs backend
-            exit 1
-          fi
+          # Docker Compose로 배포
+          echo "🐳 Docker Compose 배포 중..."
+          docker-compose down || true
+          docker-compose up -d --build
           
           # 헬스체크
-          echo "🏥 Performing health check..."
-          for i in {1..12}; do
-            echo "Health check attempt $i/12..."
-            if curl -f http://localhost:8080/actuator/health; then
-              echo "✅ Health check passed!"
-              break
-            elif [ $i -eq 12 ]; then
-              echo "❌ Health check failed after 12 attempts"
-              echo "📋 Container logs:"
-              sudo docker-compose logs --tail 20 backend
-              exit 1
-            else
-              echo "⏳ Waiting 10 seconds before next attempt..."
-              sleep 10
+          echo "🏥 헬스체크 중..."
+          sleep 60
+          
+          for i in {1..10}; do
+            if curl -f -s http://localhost:8080/actuator/health; then
+              echo "✅ 배포 성공!"
+              exit 0
             fi
+            echo "⏳ 헬스체크 재시도... ($i/10)"
+            sleep 15
           done
           
-          # 최종 상태 확인
-          echo "📋 Final container status:"
-          sudo docker-compose ps
-          
-          # 컨테이너 로그 확인 (최근 몇 줄만)
-          echo "📋 Backend logs (최근 10줄):"
-          sudo docker-compose logs --tail 10 backend
-          
-          # 오래된 이미지 정리
-          echo "🧹 Cleaning up old images..."
-          sudo docker image prune -f
-          
-          echo "🎉 Deployment completed successfully!"
-          
-    - name: Notify deployment success
-      if: success()
-      run: |
-        echo "✅ Deployment successful!"
-        echo "🚀 Backend is now running on production server"
-        
-    - name: Notify deployment failure  
-      if: failure()
-      run: |
-        echo "❌ Deployment failed!"
-        echo "Please check the logs and fix the issues"
+          echo "❌ 헬스체크 실패"
+          docker-compose logs --tail 30
+          exit 1
