@@ -1,4 +1,3 @@
-# 로컬에서 미리 빌드한 JAR 파일 사용
 FROM eclipse-temurin:17-jre-alpine
 
 # 필요한 패키지 설치 및 시간대 설정
