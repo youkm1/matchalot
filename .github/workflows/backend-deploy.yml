@@ -22,7 +22,7 @@ jobs:
         port: 22
         timeout: 300s
         script: |
-          cd /home/youkm0806/matchalot
+          cd /home/youkm0806/matchalot/backend
           
           # Git 최신 코드 가져오기
           echo "코드 업데이트 중..."
