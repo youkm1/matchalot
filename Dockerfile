@@ -3,13 +3,13 @@ WORKDIR /workspace/app
 
 COPY build.gradle settings.gradle ./
 
-RUN gradle dependencies --no-daemon --no-build-cache \
-    -Dorg.gradle.internal.http.connectionTimeout=300000 \
-    -Dorg.gradle.internal.http.socketTimeout=300000 \
-    || (echo "의존성 다운로드 재시도..." && \
-        gradle dependencies --no-daemon --no-build-cache \
-        -Dorg.gradle.internal.http.connectionTimeout=300000 \
-        -Dorg.gradle.internal.http.socketTimeout=300000)
+#RUN gradle dependencies --no-daemon --no-build-cache \
+#    -Dorg.gradle.internal.http.connectionTimeout=300000 \
+#    -Dorg.gradle.internal.http.socketTimeout=300000 \
+#    || (echo "의존성 다운로드 재시도..." && \
+#        gradle dependencies --no-daemon --no-build-cache \
+#        -Dorg.gradle.internal.http.connectionTimeout=300000 \
+#        -Dorg.gradle.internal.http.socketTimeout=300000)
         
 COPY src src
 
