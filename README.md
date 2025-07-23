@@ -2,3 +2,4 @@
 
 Framework: Spring WebFlux
 DB: R2DBC PostgreSQL
+Infra: Azure VM
