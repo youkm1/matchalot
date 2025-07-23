@@ -91,35 +91,46 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT }}
         script: |
+          # 기존 컨테이너 중지 및 제거
           sudo docker stop matchalot-backend || true
           sudo docker rm matchalot-backend || true
           
+          # 기존 이미지 제거 (선택적)
           sudo docker rmi matchalot-backend:latest || true
           
+          # 새 코드 pull
           cd /home/ubuntu/matchalot
           git pull origin main
           
+          # Docker 이미지 빌드
           sudo docker build -t matchalot-backend:latest .
           
-          sudo docker run -d \
-            --name matchalot-backend \
-            --restart unless-stopped \
-            -p 8080:8080 \
-            -e SPRING_PROFILES_ACTIVE=prod \
-            -e DB_HOST=${{ secrets.DB_HOST }} \
-            -e DB_PORT=${{ secrets.DB_PORT }} \
-            -e DB_NAME=${{ secrets.DB_NAME }} \
-            -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
-            -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-            -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
-            -e GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
-            -e ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }} \
-            matchalot-backend:latest
+          # .env 파일이 있는지 확인
+          if [ -f .env ]; then
+            echo ".env 파일 발견됨"
+            # .env 파일을 사용하여 컨테이너 실행
+            sudo docker run -d \
+              --name matchalot-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              --env-file .env \
+              matchalot-backend:latest
+          else
+            echo ".env 파일이 없습니다. 기본 환경변수로 실행합니다."
+            # 기본 환경변수로 실행
+            sudo docker run -d \
+              --name matchalot-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e SPRING_PROFILES_ACTIVE=prod \
+              matchalot-backend:latest
+          fi
           
-          # 헬스체크
           sleep 30
           curl -f http://localhost:8080/actuator/health || exit 1
+          
+          echo "📋 컨테이너 로그 확인:"
+          sudo docker logs --tail 10 matchalot-backend
           
           # 오래된 이미지 정리
           sudo docker image prune -f
