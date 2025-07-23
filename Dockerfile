@@ -8,8 +8,7 @@ RUN apk add --no-cache curl tzdata && \
 
 WORKDIR /app
 
-# 로컬에서 빌드된 JAR 파일 복사
-# 사전 작업: ./gradlew clean build -x test
+
 COPY build/libs/*.jar app.jar
 
 # 애플리케이션 포트
