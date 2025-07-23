@@ -30,10 +30,10 @@ jobs:
           git pull origin main
           
           # .env 파일 확인
-          if [ ! -f .env ]; then
-            echo ".env 파일이 없습니다"
-            exit 1
-          fi
+          #if [ ! -f .env ]; then
+          #  echo ".env 파일이 없습니다"
+          #  exit 1
+          #fi
           
           # 빌드
           echo "빌드 중..."
