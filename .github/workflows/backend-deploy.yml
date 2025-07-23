@@ -1,4 +1,4 @@
-name: Backend Deploy 
+name: Backend Deploy to Production
 
 on:
   push:
@@ -7,6 +7,8 @@ on:
       - 'src/**'
       - 'build.gradle'
       - 'settings.gradle'
+      - 'Dockerfile'
+      - 'devops/**'
       - '.github/workflows/backend-deploy.yml'
   pull_request:
     branches: [ main ]
@@ -14,6 +16,8 @@ on:
       - 'src/**'
       - 'build.gradle'
       - 'settings.gradle'
+      - 'Dockerfile'
+      - 'devops/**'
 
 jobs:
   test:
@@ -43,8 +47,10 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
         
-    - name: Run tests
-      run: ./gradlew test -Dspring.profiles.active=test
+    - name: Run tests with test profile
+      run: ./gradlew test --info
+      env:
+        SPRING_PROFILES_ACTIVE: test
       
   build-and-deploy:
     needs: test
@@ -75,17 +81,26 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
         
-    - name: Build application
-      run: ./gradlew clean build -x test -Dspring.profiles.active=prod
-      
-    - name: Build Docker image
+    - name: Build application for production
+      run: ./gradlew clean build -x test --info
+      env:
+        SPRING_PROFILES_ACTIVE: prod
+        
+    - name: Verify build artifacts
       run: |
-        docker build -t matchalot-backend:latest .
-        docker tag matchalot-backend:latest matchalot-backend:${{ github.sha }}
+        echo "Build artifacts:"
+        ls -la build/libs/
+        echo "JAR file created: $(ls build/libs/*.jar)"
+      
+    - name: Test Docker build locally
+      run: |
+        echo "Testing Docker build..."
+        docker build -t matchalot-backend:test .
+        echo "Docker build successful"
         
     - name: Verify secrets
       run: |
-        echo "Checking secrets availability..."
+        echo "🔍 Checking secrets availability..."
         if [ -z "${{ secrets.SERVER_HOST }}" ]; then
           echo "SERVER_HOST secret is missing"
           exit 1
@@ -140,12 +155,12 @@ jobs:
           sudo docker rm matchalot-backend || true
           
           # 기존 이미지 제거
-          echo "🗑Removing old images..."
+          echo "Removing old images..."
           sudo docker rmi devops-backend:latest || true
           sudo docker rmi matchalot-backend:latest || true
           
           # 프로젝트 디렉토리 생성 및 이동
-          echo "📁 Setting up project directory..."
+          echo "Setting up project directory..."
           mkdir -p $PROJECT_DIR
           cd $PROJECT_DIR
           
@@ -162,7 +177,7 @@ jobs:
           
           # .env 파일 확인 (루트 디렉토리에 있음)
           if [ -f .env ]; then
-            echo ".env 파일 발견"
+            echo ".env 파일 발견됨 (루트 디렉토리)"
             echo ".env 파일 내용 확인 (민감한 정보 제외):"
             grep -v -E "(PASSWORD|SECRET|KEY)" .env | head -5 || true
           else
@@ -171,7 +186,7 @@ jobs:
           fi
           
           # devops 디렉토리로 이동
-          echo "📁 Moving to devops directory..."
+          echo "Moving to devops directory..."
           cd $DEVOPS_DIR
           
           # docker-compose 파일 확인
@@ -190,12 +205,12 @@ jobs:
           fi
           
           # Docker Compose로 빌드 및 실행
-          echo "🔨 Building and starting services with docker-compose..."
+          echo "Building and starting services with docker-compose..."
           sudo docker-compose build backend
           sudo docker-compose up -d backend
           
           # 컨테이너 상태 확인
-          echo "🔍 Checking container status..."
+          echo "Checking container status..."
           sudo docker-compose ps
           
           # 백엔드 컨테이너가 실행 중인지 확인
@@ -234,7 +249,7 @@ jobs:
           sudo docker-compose logs --tail 10 backend
           
           # 오래된 이미지 정리
-          echo "old images..."
+          echo "Cleaning up old images..."
           sudo docker image prune -f
           
           echo "Deployment completed successfully!"
