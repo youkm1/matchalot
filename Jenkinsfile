@@ -4,7 +4,22 @@ pipeline {
     agent any
     
     triggers {
-        githubPush()  // Git Push 시 자동 트리거
+        // ✅ Generic Webhook Trigger로 변경
+        GenericTrigger(
+            genericVariables: [
+                [key: 'ref', value: '$.ref'],
+                [key: 'repository_name', value: '$.repository.name'],
+                [key: 'pusher_name', value: '$.pusher.name'],
+                [key: 'commits', value: '$.commits']
+            ],
+            token: 'matchalot-backend',
+            printContributedVariables: true,
+            printPostContent: true,
+            silentResponse: false,
+            // ✅ main 브랜치에서만 트리거 (선택사항)
+            regexpFilterText: '$ref',
+            regexpFilterExpression: 'refs/heads/(main|develop)'
+        )
     }
     
     environment {
@@ -21,6 +36,24 @@ pipeline {
     }
     
     stages {
+        stage('Webhook Debug') {
+            steps {
+                script {
+                    echo "🔍 Webhook Variables:"
+                    echo "ref: ${env.ref ?: 'Not set'}"
+                    echo "repository_name: ${env.repository_name ?: 'Not set'}"
+                    echo "pusher_name: ${env.pusher_name ?: 'Not set'}"
+                    echo "Branch Name: ${env.BRANCH_NAME ?: 'Not detected'}"
+                    
+                    // 브랜치 이름 추출
+                    if (env.ref) {
+                        env.EXTRACTED_BRANCH = env.ref.replaceAll(/refs\/heads\//, '')
+                        echo "추출된 브랜치: ${env.EXTRACTED_BRANCH}"
+                    }
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 echo '백엔드 소스코드 체크아웃'
@@ -68,6 +101,8 @@ pipeline {
         stage('Build Docker Image') {
             when {
                 anyOf {
+                    expression { env.EXTRACTED_BRANCH == 'main' }
+                    expression { env.EXTRACTED_BRANCH == 'develop' }
                     branch 'main'
                     branch 'develop'
                 }
@@ -89,6 +124,8 @@ pipeline {
         stage('Deploy') {
             when {
                 anyOf {
+                    expression { env.EXTRACTED_BRANCH == 'main' }
+                    expression { env.EXTRACTED_BRANCH == 'develop' }
                     branch 'main'
                     branch 'develop'
                 }
@@ -96,7 +133,8 @@ pipeline {
             steps {
                 echo '백엔드 배포'
                 script {
-                    def deployEnv = env.BRANCH_NAME == 'main' ? 'production' : 'staging'
+                    def currentBranch = env.EXTRACTED_BRANCH ?: env.BRANCH_NAME
+                    def deployEnv = currentBranch == 'main' ? 'production' : 'staging'
                     
                     sh """
                         ssh -o StrictHostKeyChecking=no ${deployEnv}-server '
@@ -112,6 +150,8 @@ pipeline {
         stage('Health Check') {
             when {
                 anyOf {
+                    expression { env.EXTRACTED_BRANCH == 'main' }
+                    expression { env.EXTRACTED_BRANCH == 'develop' }
                     branch 'main'
                     branch 'develop'
                 }
@@ -153,10 +193,11 @@ pipeline {
             echo '백엔드 배포 성공!'
             script {
                 try {
-                    def deployEnv = env.BRANCH_NAME == 'main' ? '프로덕션' : '스테이징'
+                    def currentBranch = env.EXTRACTED_BRANCH ?: env.BRANCH_NAME
+                    def deployEnv = currentBranch == 'main' ? '프로덕션' : '스테이징'
                     def commitMsg = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
-                    def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
-                    def branchName = env.BRANCH_NAME
+                    def commitAuthor = env.pusher_name ?: sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+                    def branchName = currentBranch ?: 'unknown'
                     def buildNumber = env.BUILD_NUMBER
                     
                     def jsonPayload = """{
@@ -206,14 +247,13 @@ pipeline {
             echo '백엔드 배포 실패!'
             script {
                 try {
-                    // ✅ 변수들을 명시적으로 정의
-                    def deployEnv = env.BRANCH_NAME == 'main' ? '프로덕션' : '스테이징'
-                    def commitAuthor = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
-                    def branchName = env.BRANCH_NAME ?: 'unknown'
+                    def currentBranch = env.EXTRACTED_BRANCH ?: env.BRANCH_NAME
+                    def deployEnv = currentBranch == 'main' ? '프로덕션' : '스테이징'
+                    def commitAuthor = env.pusher_name ?: sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+                    def branchName = currentBranch ?: 'unknown'
                     def buildNumber = env.BUILD_NUMBER ?: 'unknown'
                     def buildUrl = env.BUILD_URL ?: 'unknown'
                     
-                    // ✅ 실패 메시지로 수정
                     def jsonPayload = """{
                     "embeds": [{
                         "title": "💥 Backend 배포 실패!",
