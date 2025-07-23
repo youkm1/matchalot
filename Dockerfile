@@ -11,7 +11,6 @@ WORKDIR /app
 
 COPY build/libs/*.jar app.jar
 
-# 애플리케이션 포트
 EXPOSE 8080
 
 # Health check
