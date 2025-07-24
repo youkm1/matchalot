@@ -6,8 +6,7 @@ COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
 
-# 의존성 캐싱을 위한 별도 스텝
-COPY build.gradle settings.gradle ./
+
 RUN ./gradlew dependencies --no-daemon
 
 # 소스 코드 복사 및 빌드
