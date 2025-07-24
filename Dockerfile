@@ -1,13 +1,26 @@
+# 빌드 스테이지는 JDK 
 FROM eclipse-temurin:17-jdk-alpine AS build
 WORKDIR /workspace/app
 
+# 네트워크 설정 및 필요 패키지 설치
+RUN apk add --no-cache curl wget
 
+# Gradle Wrapper와 설정 파일들 복사
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
 
 
-RUN ./gradlew dependencies --no-daemon
+RUN chmod +x ./gradlew
+
+# 네트워크 타임아웃을 늘림
+RUN ./gradlew dependencies --no-daemon \
+    -Dorg.gradle.internal.http.connectionTimeout=600000 \
+    -Dorg.gradle.internal.http.socketTimeout=600000 \
+    --stacktrace || \
+    (echo "재시도..." && ./gradlew dependencies --no-daemon \
+    -Dorg.gradle.internal.http.connectionTimeout=600000 \
+    -Dorg.gradle.internal.http.socketTimeout=600000)
 
 # 소스 코드 복사 및 빌드
 COPY src src
