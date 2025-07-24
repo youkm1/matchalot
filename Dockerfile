@@ -1,4 +1,3 @@
-# 빌드 스테이지는 JDK 
 FROM eclipse-temurin:17-jdk-alpine AS build
 WORKDIR /workspace/app
 
