@@ -142,6 +142,9 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
                .domain("duckdns.org")
                .build();
        response.addCookie(cookie);
+        log.info("Set-Cookie: {} with attributes: HttpOnly={}, Secure={}, SameSite={}, MaxAge={}, Path={}, Domain={}",
+                name, cookie.isHttpOnly(), cookie.isSecure(), cookie.getSameSite(),
+                cookie.getMaxAge(), cookie.getPath(), cookie.getDomain());
     }
 
     private String encodeMessage(String message) {

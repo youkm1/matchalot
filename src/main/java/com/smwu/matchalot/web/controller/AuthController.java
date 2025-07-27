@@ -39,7 +39,7 @@ public class AuthController {
 
     private final UserService userService;
     private final JwtTokenProvider jwtTokenProvider;
-    private final OAuth2JwtAuthenticationSuccessHandler oauth2SuccessHandler;
+
 
 
     @GetMapping("/callback")
@@ -214,7 +214,7 @@ public class AuthController {
                             user.getNickname()
                     );
 
-                    oauth2SuccessHandler.setSecureCookie(exchange.getResponse(), "auth-token", token);
+                    setSecureCookie(exchange.getResponse(), "auth-token", token);
 
                     return LoginResponse.success(
                             null, // 쿠키로만 전달
@@ -235,7 +235,7 @@ public class AuthController {
                             newUser.getNickname()
                     );
 
-                    oauth2SuccessHandler.setSecureCookie(exchange.getResponse(), "auth-token", token);
+                    setSecureCookie(exchange.getResponse(), "auth-token", token);
 
                     return LoginResponse.success(
                             null,
@@ -396,13 +396,17 @@ public class AuthController {
         });
     }
 
-    /*private void setSecureCookie(ServerHttpResponse response, String name, String value) {
-        String cookieValue = String.format(
-                "%s=%s; HttpOnly; SameSite=None; Max-Age=604800; Path=/",
-                name, value
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue);
-    }*/
+    private void setSecureCookie(ServerHttpResponse response, String name, String value) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(true) // 이 부분을 true로 설정 (매우 중요)
+                .sameSite("None") // 이 부분을 "None"으로 설정 (매우 중요)
+                .maxAge(Duration.ofDays(7)) // Max-Age를 Duration으로 설정
+                .path("/")
+                .domain("duckdns.org") // 이 부분을 반드시 추가하고 'duckdns.org'로 설정
+                .build();
+        response.addCookie(cookie);
+    }
 
     private void deleteSecureCookie(ServerHttpResponse response, String name) {
         String[] paths = {"/", "/api", "/oauth2"};
