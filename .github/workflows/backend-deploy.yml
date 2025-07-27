@@ -1,38 +1,95 @@
-name: Deploy 
+name: Deploy 
+
+
 
 on:
-  push:
-    branches: [ main ]
-    paths: 
-      - 'src/**'
-      - 'build.gradle'
-      - 'Dockerfile'
+
+  push:
+
+    branches: [ main ]
+
+    paths:  
+
+      - 'src/**'
+
+      - 'build.gradle'
+
+      - 'Dockerfile'
+
+      - 'settings.gradle' 
+
+      - 'gradlew'
+
+      - '.gradlew' # (hidden file in case of mvnw)
+
+
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Deploy to Azure VM
-      uses: appleboy/ssh-action@v0.1.10
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: 22
-        timeout: 300s
-        script: |
-          echo "코드 업데이트 중..."
-          cd /home/youkm0806/matchalot
-          git stash
-          git pull origin main
-  
-          echo "Docker Compose 배포 중..."
-          cd devops                              # backend 빌드 제거
-          docker-compose down
-          docker-compose up --build -d
-          
-          echo "헬스체크 중..."
-          sleep 30
-          curl -f http://localhost:8080/actuator/health
-          echo "배포 성공!"
+
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    
+
+    steps:
+
+    - name: Checkout code
+
+      uses: actions/checkout@v4 # 💡 GitHub Actions Runner에 코드를 체크아웃하는 단계 추가
+
+
+
+    - name: Deploy to Azure VM
+
+      uses: appleboy/ssh-action@v0.1.10
+
+      with:
+
+        host: ${{ secrets.SERVER_HOST }}
+
+        username: ${{ secrets.SERVER_USER }}
+
+        key: ${{ secrets.SERVER_SSH_KEY }}
+
+        port: 22
+
+        timeout: 300s
+
+        script: |
+
+          echo "코드 업데이트 중..."
+
+          cd /home/youkm0806/matchalot         
+
+          git fetch origin main # 원격 변경사항 가져오기
+
+          git reset --hard origin/main # 로컬 변경사항 버리고 main 브랜치와 동일하게 맞추기
+
+          git clean -fd # 추적되지 않는 파일/디렉토리 제거 (선택 사항이지만 깔끔한 빌드에 좋음)
+
+          
+
+          echo "Backend 애플리케이션 빌드 중..."
+
+          ./gradlew bootJar # 또는 프로젝트 설정에 따라 ./gradlew build
+
+
+
+          echo "Docker Compose 배포 중..."
+
+          cd devops  
+
+          docker-compose down
+
+          docker-compose up --build -d # --build 옵션이 재빌드를 트리거
+
+
+
+          echo "헬스체크 중..."
+
+          sleep 30
+
+          curl -f http://localhost:8080/actuator/health
+
+          echo "배포 성공!"
