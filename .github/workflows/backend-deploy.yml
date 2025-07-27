@@ -3,59 +3,32 @@ name: Deploy 
 
 
 on:
-
   push:
-
     branches: [ main ]
-
-    paths:  
-
-      - 'src/**'
-
-      - 'build.gradle'
-
-      - 'Dockerfile'
-
-      - 'settings.gradle' 
-
-      - 'gradlew'
-
-      - '.gradlew' # (hidden file in case of mvnw)
+    paths: 'src/**','build.gradle','Dockerfile','settings.gradle','gradlew','.gradlew' 
 
 
 
 jobs:
-
   deploy:
-
     runs-on: ubuntu-latest
 
     
 
     steps:
-
     - name: Checkout code
-
-      uses: actions/checkout@v4 # 💡 GitHub Actions Runner에 코드를 체크아웃하는 단계 추가
+      uses: actions/checkout@v4 
 
 
 
     - name: Deploy to Azure VM
-
       uses: appleboy/ssh-action@v0.1.10
-
       with:
-
         host: ${{ secrets.SERVER_HOST }}
-
         username: ${{ secrets.SERVER_USER }}
-
         key: ${{ secrets.SERVER_SSH_KEY }}
-
         port: 22
-
         timeout: 300s
-
         script: |
 
           echo "코드 업데이트 중..."
