@@ -421,8 +421,8 @@ public class AuthController {
     private ResponseCookie createLogoutCookie() {
         return ResponseCookie.from("auth-token", "")
                 .httpOnly(true)
-                .secure(false) // HTTPS 환경에서는 true
-                .sameSite("Lax")
+                .secure(true)
+                .sameSite("None")
                 .maxAge(Duration.ZERO) // 즉시 만료
                 .path("/")
                 .build();
