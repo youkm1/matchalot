@@ -133,7 +133,7 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
 
     private void setSecureCookie(ServerHttpResponse response, String name, String value) {
         String cookieValue = String.format(
-                "%s=%s; HttpOnly; SameSite=Strict; Max-Age=604800; Path=/",
+                "%s=%s; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/",
                 name, value
         );
         response.getHeaders().add("Set-Cookie", cookieValue);
