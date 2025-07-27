@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -132,11 +133,15 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
     }
 
     private void setSecureCookie(ServerHttpResponse response, String name, String value) {
-        String cookieValue = String.format(
-                "%s=%s; HttpOnly; Secure; SameSite=None; Max-Age=604800; Path=/",
-                name, value
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue);
+       ResponseCookie cookie = ResponseCookie.from(name, value)
+               .httpOnly(true)
+               .secure(true)
+               .sameSite("None")
+               .maxAge(604800)
+               .path("/")
+               .domain("duckdns.org")
+               .build();
+       response.addCookie(cookie);
     }
 
     private String encodeMessage(String message) {
