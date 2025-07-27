@@ -352,38 +352,31 @@ public class AuthController {
                 }));
     }
 
+
     private void deleteAuthTokenCookie(ServerHttpResponse response, String path) {
-        // ✅ 원본과 정확히 일치하는 설정으로 삭제
-        String cookieValue1 = String.format(
-                "auth-token=; HttpOnly; SameSite=None; Max-Age=0; Path=%s",
-                path
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue1);
-
-        // ✅ 혹시 모를 경우를 대비한 Secure 없는 버전
-        String cookieValue2 = String.format(
-                "auth-token=; HttpOnly; SameSite=None; Max-Age=0; Path=%s",
-                path
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue2);
-
-        // ✅ 일반 쿠키도 삭제
-        String cookieValue3 = String.format(
-                "auth-token=; Max-Age=0; Path=%s",
-                path
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue3);
-
-        log.info("🗑️ 모든 방식으로 쿠키 삭제 시도: Path={}", path);
+        ResponseCookie cookie = ResponseCookie.from("auth-token", "") // 빈 값으로 설정하여 삭제
+                .httpOnly(true)
+                .secure(true) // ✨ 삭제 시에도 'Secure'와 'SameSite' 속성이 일치해야 함
+                .sameSite("None") // ✨ 삭제 시에도 'SameSite' 속성이 일치해야 함
+                .maxAge(Duration.ZERO) // 즉시 만료
+                .path(path)
+                .domain("duckdns.org") // ✨ 삭제 시에도 'Domain' 속성이 일치해야 함
+                .build();
+        response.addCookie(cookie);
+        log.info("🗑️ 모든 방식으로 쿠키 삭제 시도 (ResponseCookie): Path={}", path);
     }
 
     private void deleteAuthTokenCookieWithDomain(ServerHttpResponse response, String path, String domain) {
-        String cookieValue = String.format(
-                "auth-token=; HttpOnly; SameSite=None; Max-Age=0; Path=%s; Domain=%s",
-                path, domain
-        );
-        response.getHeaders().add("Set-Cookie", cookieValue);
-        log.info("🗑️ 도메인 포함 쿠키 삭제: Path={}, Domain={}", path, domain);
+        ResponseCookie cookie = ResponseCookie.from("auth-token", "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .maxAge(Duration.ZERO)
+                .path(path)
+                .domain(domain)
+                .build();
+        response.addCookie(cookie);
+        log.info("🗑️ 도메인 포함 쿠키 삭제 (ResponseCookie): Path={}, Domain={}", path, domain);
     }
 
     private Mono<String> extractTokenFromCookie(ServerWebExchange exchange) {
@@ -406,6 +399,10 @@ public class AuthController {
                 .domain("duckdns.org") // 이 부분을 반드시 추가하고 'duckdns.org'로 설정
                 .build();
         response.addCookie(cookie);
+
+        log.info("[authController]최종 발행될 쿠키 (서버 측): {} with attributes: HttpOnly={}, Secure={}, SameSite={}, MaxAge={}, Path={}, Domain={}",
+                name, cookie.isHttpOnly(), cookie.isSecure(), cookie.getSameSite(),
+                cookie.getMaxAge(), cookie.getPath(), cookie.getDomain());
     }
 
     private void deleteSecureCookie(ServerHttpResponse response, String name) {
