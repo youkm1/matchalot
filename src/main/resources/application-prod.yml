@@ -41,7 +41,7 @@ jwt:
 app:
   frontend:
     # 이것도 공개 정보
-    url: https://matchalot.vercel.app/
+    url: https://matchalot.vercel.app
 
 
 logging:
