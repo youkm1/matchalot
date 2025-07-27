@@ -353,14 +353,14 @@ public class AuthController {
     private void deleteAuthTokenCookie(ServerHttpResponse response, String path) {
         // ✅ 원본과 정확히 일치하는 설정으로 삭제
         String cookieValue1 = String.format(
-                "auth-token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s",
+                "auth-token=; HttpOnly; SameSite=None; Max-Age=0; Path=%s",
                 path
         );
         response.getHeaders().add("Set-Cookie", cookieValue1);
 
         // ✅ 혹시 모를 경우를 대비한 Secure 없는 버전
         String cookieValue2 = String.format(
-                "auth-token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s",
+                "auth-token=; HttpOnly; SameSite=None; Max-Age=0; Path=%s",
                 path
         );
         response.getHeaders().add("Set-Cookie", cookieValue2);
@@ -377,7 +377,7 @@ public class AuthController {
 
     private void deleteAuthTokenCookieWithDomain(ServerHttpResponse response, String path, String domain) {
         String cookieValue = String.format(
-                "auth-token=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s; Domain=%s",
+                "auth-token=; HttpOnly; SameSite=None; Max-Age=0; Path=%s; Domain=%s",
                 path, domain
         );
         response.getHeaders().add("Set-Cookie", cookieValue);
@@ -396,7 +396,7 @@ public class AuthController {
 
     private void setSecureCookie(ServerHttpResponse response, String name, String value) {
         String cookieValue = String.format(
-                "%s=%s; HttpOnly; SameSite=Strict; Max-Age=604800; Path=/",
+                "%s=%s; HttpOnly; SameSite=None; Max-Age=604800; Path=/",
                 name, value
         );
         response.getHeaders().add("Set-Cookie", cookieValue);
@@ -407,7 +407,7 @@ public class AuthController {
 
         for (String path : paths) {
             String cookieValue = String.format(
-                    "%s=; HttpOnly; SameSite=Strict; Max-Age=0; Path=%s",
+                    "%s=; HttpOnly; SameSite=None; Max-Age=0; Path=%s",
                     name, path
             );
             response.getHeaders().add("Set-Cookie", cookieValue);

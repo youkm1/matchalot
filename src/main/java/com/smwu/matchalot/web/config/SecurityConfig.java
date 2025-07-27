@@ -143,7 +143,7 @@ public class SecurityConfig {
 
         for (String path : paths) {
             String cookieValue = String.format(
-                    "%s=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=%s",
+                    "%s=; HttpOnly; Secure; SameSite=None; Max-Age=0; Path=%s",
                     cookieName, path
             );
             response.getHeaders().add("Set-Cookie", cookieValue);
