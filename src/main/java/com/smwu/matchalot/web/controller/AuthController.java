@@ -4,6 +4,7 @@ import com.smwu.matchalot.application.service.UserService;
 import com.smwu.matchalot.domain.model.entity.User;
 import com.smwu.matchalot.domain.model.vo.Email;
 import com.smwu.matchalot.web.config.JwtTokenProvider;
+import com.smwu.matchalot.web.config.OAuth2JwtAuthenticationSuccessHandler;
 import com.smwu.matchalot.web.dto.LoginResponse;
 import com.smwu.matchalot.web.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class AuthController {
 
     private final UserService userService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final OAuth2JwtAuthenticationSuccessHandler oauth2SuccessHandler;
 
 
     @GetMapping("/callback")
@@ -212,7 +214,7 @@ public class AuthController {
                             user.getNickname()
                     );
 
-                    setSecureCookie(exchange.getResponse(), "auth-token", token);
+                    oauth2SuccessHandler.setSecureCookie(exchange.getResponse(), "auth-token", token);
 
                     return LoginResponse.success(
                             null, // 쿠키로만 전달
@@ -233,7 +235,7 @@ public class AuthController {
                             newUser.getNickname()
                     );
 
-                    setSecureCookie(exchange.getResponse(), "auth-token", token);
+                    oauth2SuccessHandler.setSecureCookie(exchange.getResponse(), "auth-token", token);
 
                     return LoginResponse.success(
                             null,
@@ -394,13 +396,13 @@ public class AuthController {
         });
     }
 
-    private void setSecureCookie(ServerHttpResponse response, String name, String value) {
+    /*private void setSecureCookie(ServerHttpResponse response, String name, String value) {
         String cookieValue = String.format(
                 "%s=%s; HttpOnly; SameSite=None; Max-Age=604800; Path=/",
                 name, value
         );
         response.getHeaders().add("Set-Cookie", cookieValue);
-    }
+    }*/
 
     private void deleteSecureCookie(ServerHttpResponse response, String name) {
         String[] paths = {"/", "/api", "/oauth2"};

@@ -132,7 +132,7 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
         return exchange.getResponse().setComplete();
     }
 
-    private void setSecureCookie(ServerHttpResponse response, String name, String value) {
+    public void setSecureCookie(ServerHttpResponse response, String name, String value) {
        ResponseCookie cookie = ResponseCookie.from(name, value)
                .httpOnly(true)
                .secure(true)
