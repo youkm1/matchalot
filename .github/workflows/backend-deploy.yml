@@ -5,10 +5,13 @@ name: Deploy 
 on:
   push:
     branches: [ main ]
-    paths: 'src/**','build.gradle','Dockerfile','settings.gradle','gradlew','.gradlew' 
-
-
-
+    paths:  
+      - 'src/**'
+      - 'build.gradle'
+      - 'Dockerfile'
+      - 'settings.gradle'  
+      - 'gradlew'
+      - '.gradlew' # (hidden file in case of mvnw)
 jobs:
   deploy:
     runs-on: ubuntu-latest
