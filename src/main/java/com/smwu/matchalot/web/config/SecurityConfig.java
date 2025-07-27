@@ -91,7 +91,7 @@ public class SecurityConfig {
 
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/api/v1/auth/**").permitAll()
-                        .pathMatchers("/login", "/oauth2/**").permitAll()
+                        .pathMatchers("/login/**", "/oauth2/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials/subjects").permitAll()
