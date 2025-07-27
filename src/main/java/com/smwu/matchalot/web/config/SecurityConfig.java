@@ -59,34 +59,7 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         return http
-                .cors(cors -> cors.configurationSource(exchange -> {
-                    CorsConfiguration config = new CorsConfiguration();
-
-                    config.setAllowedOriginPatterns(Arrays.asList(
-                            "http://localhost:3000",
-                            "http://127.0.0.1:3000",
-                            frontendUrl
-                    ));
-
-                    config.setAllowedMethods(Arrays.asList(
-                            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
-                    ));
-                    config.setAllowedHeaders(Arrays.asList("*"));
-
-                    // CSRF 토큰 헤더도 노출 (중요!)
-                    config.setExposedHeaders(Arrays.asList(
-                            "Access-Control-Allow-Origin",
-                            "Access-Control-Allow-Credentials",
-                            "X-CSRF-Token",
-                            "X-XSRF-TOKEN",
-                            "Set-Cookie"
-                    ));
-
-                    config.setAllowCredentials(true);
-                    config.setMaxAge(3600L);
-                    return config;
-                }))
-                //웹플럭스에는 sessionsCreationPolicy가 없음
+                .cors(cors -> cors.disable())
 
 
                 .authorizeExchange(exchanges -> exchanges
