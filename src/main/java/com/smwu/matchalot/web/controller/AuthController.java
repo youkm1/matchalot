@@ -360,7 +360,7 @@ public class AuthController {
                 .sameSite("None") // ✨ 삭제 시에도 'SameSite' 속성이 일치해야 함
                 .maxAge(Duration.ZERO) // 즉시 만료
                 .path(path)
-                .domain("duckdns.org") // ✨ 삭제 시에도 'Domain' 속성이 일치해야 함
+                .domain("matchalot.duckdns.org") // ✨ 삭제 시에도 'Domain' 속성이 일치해야 함
                 .build();
         response.addCookie(cookie);
         log.info("🗑️ 모든 방식으로 쿠키 삭제 시도 (ResponseCookie): Path={}", path);
@@ -396,7 +396,7 @@ public class AuthController {
                 .sameSite("None") // 이 부분을 "None"으로 설정 (매우 중요)
                 .maxAge(Duration.ofDays(7)) // Max-Age를 Duration으로 설정
                 .path("/")
-                .domain("duckdns.org") // 이 부분을 반드시 추가하고 'duckdns.org'로 설정
+                .domain("matchalot.duckdns.org") // 이 부분을 반드시 추가하고 'duckdns.org'로 설정
                 .build();
         response.addCookie(cookie);
 

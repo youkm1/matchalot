@@ -83,7 +83,7 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
                             user.getEmail().value(),
                             user.getNickname()
                     );
-
+                    log.info("JWT 토큰 생성: {}", user.getEmail().value());
                     // 쿠키에 토큰 저장
                     setSecureCookie(exchange.getResponse(), "auth-token", token);
 
@@ -139,7 +139,7 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
                .sameSite("None")
                .maxAge(604800)
                .path("/")
-               .domain("duckdns.org")
+               .domain("matchalot.duckdns.org")
                .build();
        response.addCookie(cookie);
         log.info("Set-Cookie: {} with attributes: HttpOnly={}, Secure={}, SameSite={}, MaxAge={}, Path={}, Domain={}",
