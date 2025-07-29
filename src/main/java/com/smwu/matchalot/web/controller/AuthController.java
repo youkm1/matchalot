@@ -251,21 +251,25 @@ public class AuthController {
 
 
     @GetMapping("/me")
-    public Mono<UserResponse> getCurrentUser(@AuthenticationPrincipal OAuth2User oauth2User) {
-        if (oauth2User == null) {
-            return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증되지 않은 사용자입니다."));
-        }
+    public Mono<UserResponse> getCurrentUser(ServerWebExchange exchange) {
+        // 쿠키에서 토큰 추출
+        return extractTokenFromCookie(exchange)
+                .flatMap(token -> {
+                    if (!jwtTokenProvider.validateToken(token)) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."));
+                    }
 
-        String email = oauth2User.getAttribute("email");
-        if (email == null) {
-            return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 정보를 찾을 수 없습니다."));
-        }
+                    String email = jwtTokenProvider.getEmail(token);
+                    Email userEmail = Email.of(email);
 
-        log.info("현재 사용자 정보 조회: {}", email);
-        return userService.getUserByEmail(Email.of(email))
-                .map(this::toUserResponse)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다.")));
+                    log.info("현재 사용자 정보 조회: {}", email);
+
+                    return userService.getUserByEmail(userEmail)
+                            .map(this::toUserResponse);
+                })
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "인증 토큰이 없습니다.")));
     }
+
 
 
 
