@@ -396,7 +396,6 @@ public class AuthController {
                 .sameSite("None") // 이 부분을 "None"으로 설정 (매우 중요)
                 .maxAge(Duration.ofDays(7)) // Max-Age를 Duration으로 설정
                 .path("/")
-                .domain("matchalot.duckdns.org") // 이 부분을 반드시 추가하고 'duckdns.org'로 설정
                 .build();
         response.addCookie(cookie);
 

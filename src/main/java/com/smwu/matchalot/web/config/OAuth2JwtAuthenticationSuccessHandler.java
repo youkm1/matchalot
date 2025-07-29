@@ -139,7 +139,6 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
                .sameSite("None")
                .maxAge(604800)
                .path("/")
-               .domain("matchalot.duckdns.org")
                .build();
        response.addCookie(cookie);
         log.info("Set-Cookie: {} with attributes: HttpOnly={}, Secure={}, SameSite={}, MaxAge={}, Path={}, Domain={}",
