@@ -96,6 +96,9 @@ public class CookieAuthenticationFilter implements WebFilter {
 
     private String extractTokenFromCookie(ServerHttpRequest request) {
         List<HttpCookie> cookies = request.getCookies().get("auth-token");
-        return cookies != null && !cookies.isEmpty() ? cookies.get(0).getValue() : null;
+        log.info("Cookies received: {}", request.getCookies());
+        String token = cookies != null && !cookies.isEmpty() ? cookies.get(0).getValue() : null;
+        log.info("Extracted auth-token: {}", token);
+        return token;
     }
 }
