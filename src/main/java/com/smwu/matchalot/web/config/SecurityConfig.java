@@ -59,6 +59,7 @@ public class SecurityConfig {
         return repository;
     }
 
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
