@@ -362,7 +362,6 @@ public class AuthController {
                 .sameSite("Lax") // ✨ 삭제 시에도 'SameSite' 속성이 일치해야 함
                 .maxAge(Duration.ZERO) // 즉시 만료
                 .path(path)
-                .domain("match-a-lot.store")
                 .build();
         response.addCookie(cookie);
         log.info("🗑️ 모든 방식으로 쿠키 삭제 시도 (ResponseCookie): Path={}", path);
@@ -398,7 +397,6 @@ public class AuthController {
                 .sameSite("Lax")
                 .maxAge(Duration.ofDays(7)) // Max-Age를 Duration으로 설정
                 .path("/")
-                .domain("match-a-lot.store")
                 .build();
         response.addCookie(cookie);
 

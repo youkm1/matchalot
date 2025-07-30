@@ -139,7 +139,6 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
                .sameSite("Lax")
                .maxAge(604800)
                .path("/")
-               .domain("match-a-lot.store")
                .build();
        response.addCookie(cookie);
         log.info("Set-Cookie: {} with attributes: HttpOnly={}, Secure={}, SameSite={}, MaxAge={}, Path={}, Domain={}",
