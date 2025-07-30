@@ -136,9 +136,10 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
        ResponseCookie cookie = ResponseCookie.from(name, value)
                .httpOnly(true)
                .secure(true)
-               .sameSite("None")
+               .sameSite("Lax")
                .maxAge(604800)
                .path("/")
+               .domain("match-a-lot.store")
                .build();
        response.addCookie(cookie);
         log.info("Set-Cookie: {} with attributes: HttpOnly={}, Secure={}, SameSite={}, MaxAge={}, Path={}, Domain={}",

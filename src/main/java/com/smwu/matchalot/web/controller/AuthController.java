@@ -359,10 +359,10 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from("auth-token", "") // 빈 값으로 설정하여 삭제
                 .httpOnly(true)
                 .secure(true) // ✨ 삭제 시에도 'Secure'와 'SameSite' 속성이 일치해야 함
-                .sameSite("None") // ✨ 삭제 시에도 'SameSite' 속성이 일치해야 함
+                .sameSite("Lax") // ✨ 삭제 시에도 'SameSite' 속성이 일치해야 함
                 .maxAge(Duration.ZERO) // 즉시 만료
                 .path(path)
-                .domain("matchalot.duckdns.org") // ✨ 삭제 시에도 'Domain' 속성이 일치해야 함
+                .domain("match-a-lot.store")
                 .build();
         response.addCookie(cookie);
         log.info("🗑️ 모든 방식으로 쿠키 삭제 시도 (ResponseCookie): Path={}", path);
@@ -378,7 +378,7 @@ public class AuthController {
                 .domain(domain)
                 .build();
         response.addCookie(cookie);
-        log.info("🗑️ 도메인 포함 쿠키 삭제 (ResponseCookie): Path={}, Domain={}", path, domain);
+        log.info("도메인 포함 쿠키 삭제 (ResponseCookie): Path={}, Domain={}", path, domain);
     }
 
     private Mono<String> extractTokenFromCookie(ServerWebExchange exchange) {
@@ -395,9 +395,10 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(true) // 이 부분을 true로 설정 (매우 중요)
-                .sameSite("None") // 이 부분을 "None"으로 설정 (매우 중요)
+                .sameSite("Lax")
                 .maxAge(Duration.ofDays(7)) // Max-Age를 Duration으로 설정
                 .path("/")
+                .domain("match-a-lot.store")
                 .build();
         response.addCookie(cookie);
 

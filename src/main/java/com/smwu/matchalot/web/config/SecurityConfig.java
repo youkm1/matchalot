@@ -62,7 +62,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(frontendUrl,"https://matchalot.duckdns.org"));
+        configuration.setAllowedOrigins(Arrays.asList(frontendUrl,"https://api.match-a-lot.store"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE","OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Content-Type", "Authorization", "X-CSRF-Token", "X-XSRF-TOKEN"));
         configuration.setAllowCredentials(true);
@@ -136,15 +136,5 @@ public class SecurityConfig {
         };
     }
 
-    private void deleteCookie(org.springframework.http.server.reactive.ServerHttpResponse response, String cookieName) {
-        String[] paths = {"/", "/api", "/oauth2"};
 
-        for (String path : paths) {
-            String cookieValue = String.format(
-                    "%s=; HttpOnly; Secure; SameSite=None; Max-Age=0; Path=%s",
-                    cookieName, path
-            );
-            response.getHeaders().add("Set-Cookie", cookieValue);
-        }
-    }
 }
