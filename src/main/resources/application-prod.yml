@@ -31,7 +31,7 @@ spring:
               - openid
               - email
               - profile
-            redirect-uri: https://matchalot.duckdns.org/login/oauth2/code/google
+            redirect-uri: https://api.match-a-lot.store/login/oauth2/code/google
             authorization-grant-type: authorization_code
 
 jwt:
@@ -41,7 +41,7 @@ jwt:
 app:
   frontend:
     # 이것도 공개 정보
-    url: https://matchalot.vercel.app
+    url: https://www.match-a-lot.store
 
 
 logging:
