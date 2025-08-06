@@ -116,9 +116,9 @@ public class SecurityConfig {
                                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.PATCH, "/api/v1/study-materials/**"),
 
                                 // 다른 보호 대상 API들
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/v1/matches/**"),
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.PUT, "/api/v1/matches/**"),
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.DELETE, "/api/v1/matches/**")
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/v1/match/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.PUT, "/api/v1/match/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.DELETE, "/api/v1/match/**")
                         ))
                 )
                 .build();
