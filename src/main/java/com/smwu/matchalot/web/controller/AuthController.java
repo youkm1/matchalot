@@ -331,13 +331,38 @@ public class AuthController {
                 .doOnSuccess(result -> log.info("=== 로그아웃 처리 완료 ==="));
     }
 
-    @GetMapping("/csrf-token")
+    /*@GetMapping("/csrf-token")
     public Mono<ResponseEntity<Map<String, String>>> getCsrf(@ModelAttribute Mono<CsrfToken> csrfToken) {
         log.info("csrf token request received");
         return csrfToken
                 .map(token -> {
                     log.info(" CSRF 토큰: {}...",
                             token.getToken());
+
+                    Map<String, String> response = new HashMap<>();
+                    response.put("token", token.getToken());
+                    response.put("headerName", token.getHeaderName());
+                    response.put("parameterName", token.getParameterName());
+
+                    return ResponseEntity.ok(response);
+                })
+                .switchIfEmpty(Mono.fromCallable(() -> {
+                    log.warn("⚠️ CSRF 토큰을 찾을 수 없음");
+                    Map<String, String> response = new HashMap<>();
+                    response.put("error", "CSRF token not available");
+                    return ResponseEntity.ok(response);
+                }));
+    }*/
+
+    @GetMapping("/csrf-token")
+    public Mono<ResponseEntity<Map<String, String>>> getCsrf(ServerWebExchange exchange) {
+        log.info("csrf token request received");
+
+        // CSRF 토큰은 항상 ServerWebExchange의 attribute에서 가져와야 정확함
+        return Mono.justOrEmpty(exchange.getAttribute(CsrfToken.class.getName()))
+                .cast(CsrfToken.class)
+                .map(token -> {
+                    log.info("CSRF 토큰 반환: {}...", token.getToken().substring(0, Math.min(10, token.getToken().length())));
 
                     Map<String, String> response = new HashMap<>();
                     response.put("token", token.getToken());
