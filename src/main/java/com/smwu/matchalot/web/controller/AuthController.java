@@ -358,9 +358,9 @@ public class AuthController {
     public Mono<ResponseEntity<Map<String, String>>> getCsrf(ServerWebExchange exchange) {
         log.info("csrf token request received");
 
-        // CSRF 토큰은 항상 ServerWebExchange의 attribute에서 가져와야 정확함
-        return Mono.justOrEmpty(exchange.getAttribute(CsrfToken.class.getName()))
-                .cast(CsrfToken.class)
+        // CSRF 토큰은 Mono<CsrfToken>으로 저장되므로 flatMap을 사용
+        return Mono.justOrEmpty(exchange.<Mono<CsrfToken>>getAttribute(CsrfToken.class.getName()))
+                .flatMap(csrfTokenMono -> csrfTokenMono)
                 .map(token -> {
                     log.info("CSRF 토큰 반환: {}...", token.getToken().substring(0, Math.min(10, token.getToken().length())));
 
