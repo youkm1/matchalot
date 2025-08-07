@@ -8,6 +8,7 @@ import com.smwu.matchalot.domain.model.vo.MatchStatus;
 import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
 import com.smwu.matchalot.domain.model.vo.UserId;
 import com.smwu.matchalot.domain.reposiotry.MatchRepository;
+import com.smwu.matchalot.web.websocket.MatchWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 
 @Service
@@ -25,6 +27,7 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final UserService userService;
     private final StudyMaterialService studyMaterialService;
+    private final MatchWebSocketHandler webSocketHandler;
 
     public Mono<Boolean> hasCompletedMatch(UserId userId, StudyMaterialId materialId) {
         return getMyMatches(userId)
@@ -47,7 +50,19 @@ public class MatchService {
                             requesterMaterialId,
                             partnerMaterial.getId()
                     );
-                    return matchRepository.save(newMatch);
+                    return matchRepository.save(newMatch)
+                            .doOnNext(match -> {
+                                // 웹소켓으로 실시간 알림 전송
+                                webSocketHandler.sendMatchNotification(
+                                    receiverId.value().toString(), 
+                                    "MATCH_REQUEST", 
+                                    Map.of(
+                                        "matchId", match.getId().value(),
+                                        "requesterId", requesterId.value(),
+                                        "materialId", requesterMaterialId.value()
+                                    )
+                                );
+                            });
                 });
     }
     public Mono<Match> acceptMatch(MatchId matchId, UserId userId) {
@@ -66,7 +81,15 @@ public class MatchService {
                     }
 
                     // 수락 처리
-                    return matchRepository.save(match.accept());
+                    return matchRepository.save(match.accept())
+                            .doOnNext(acceptedMatch -> {
+                                // 요청자에게 수락 알림
+                                webSocketHandler.sendMatchNotification(
+                                    match.getRequesterId().value().toString(),
+                                    "MATCH_ACCEPTED",
+                                    Map.of("matchId", matchId.value())
+                                );
+                            });
                 });
     }
 
@@ -90,7 +113,15 @@ public class MatchService {
                     if (!match.isReceiver(userId)) {
                         return Mono.error(new IllegalStateException("매칭을 거절할 권한이 없습니다"));
                     }
-                    return matchRepository.save(match.reject());
+                    return matchRepository.save(match.reject())
+                            .doOnNext(rejectedMatch -> {
+                                // 요청자에게 거절 알림
+                                webSocketHandler.sendMatchNotification(
+                                    match.getRequesterId().value().toString(),
+                                    "MATCH_REJECTED",
+                                    Map.of("matchId", matchId.value())
+                                );
+                            });
                 });
     }
 
