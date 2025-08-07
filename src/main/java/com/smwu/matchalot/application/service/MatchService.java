@@ -8,7 +8,7 @@ import com.smwu.matchalot.domain.model.vo.MatchStatus;
 import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
 import com.smwu.matchalot.domain.model.vo.UserId;
 import com.smwu.matchalot.domain.reposiotry.MatchRepository;
-import com.smwu.matchalot.web.websocket.MatchWebSocketHandler;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +18,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import com.smwu.matchalot.application.event.MatchEvent;
 
 
 @Service
@@ -27,7 +28,7 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final UserService userService;
     private final StudyMaterialService studyMaterialService;
-    private final MatchWebSocketHandler webSocketHandler;
+    private final ApplicationEventPublisher eventPublisher;
 
     public Mono<Boolean> hasCompletedMatch(UserId userId, StudyMaterialId materialId) {
         return getMyMatches(userId)
@@ -52,16 +53,17 @@ public class MatchService {
                     );
                     return matchRepository.save(newMatch)
                             .doOnNext(match -> {
-                                // 웹소켓으로 실시간 알림 전송
-                                webSocketHandler.sendMatchNotification(
-                                    receiverId.value().toString(), 
-                                    "MATCH_REQUEST", 
+                                // 매치 요청 이벤트 발행
+                                eventPublisher.publishEvent(new MatchEvent(
+                                    this,
+                                    receiverId.value().toString(),
+                                    "MATCH_REQUEST",
                                     Map.of(
                                         "matchId", match.getId().value(),
                                         "requesterId", requesterId.value(),
                                         "materialId", requesterMaterialId.value()
                                     )
-                                );
+                                ));
                             });
                 });
     }
@@ -83,12 +85,13 @@ public class MatchService {
                     // 수락 처리
                     return matchRepository.save(match.accept())
                             .doOnNext(acceptedMatch -> {
-                                // 요청자에게 수락 알림
-                                webSocketHandler.sendMatchNotification(
+                                // 매치 수락 이벤트 발행
+                                eventPublisher.publishEvent(new MatchEvent(
+                                    this,
                                     match.getRequesterId().value().toString(),
                                     "MATCH_ACCEPTED",
                                     Map.of("matchId", matchId.value())
-                                );
+                                ));
                             });
                 });
     }
@@ -115,12 +118,13 @@ public class MatchService {
                     }
                     return matchRepository.save(match.reject())
                             .doOnNext(rejectedMatch -> {
-                                // 요청자에게 거절 알림
-                                webSocketHandler.sendMatchNotification(
+                                // 매치 거절 이벤트 발행
+                                eventPublisher.publishEvent(new MatchEvent(
+                                    this,
                                     match.getRequesterId().value().toString(),
                                     "MATCH_REJECTED",
                                     Map.of("matchId", matchId.value())
-                                );
+                                ));
                             });
                 });
     }
