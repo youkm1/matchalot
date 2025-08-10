@@ -12,6 +12,10 @@ public interface StudyMaterialRepository {
     Flux<StudyMaterial> findBySubject(Subject subject);
     Flux<StudyMaterial> findBySubjectAndExamType(Subject subject, ExamType examType);
     Flux<StudyMaterial> findBySubjectAndSemester(Subject subject, Semester semester);
+    
+    // MatchService에서 사용하는 메서드 추가
+    Flux<StudyMaterial> findByUploaderIdAndSubjectAndExamType(UserId uploaderId, Subject subject, ExamType examType);
+    
     Mono<Boolean> existsBySubjectAndExamTypeAndSemester(Subject subject, ExamType examType, Semester semester);
     Mono<Void> deleteById(StudyMaterialId id);
     Flux<StudyMaterial> findAll();

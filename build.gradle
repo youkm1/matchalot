@@ -50,6 +50,9 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     runtimeOnly 'org.postgresql:postgresql'
 
+    // SpringDoc OpenAPI (Swagger) - WebFlux 지원
+    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

@@ -20,6 +20,12 @@ public interface MatchRepository {
 
     Flux<Match> findPendingRequestsToUser(UserId receiverId);
     Flux<Match> findSentRequestsByUser(UserId myId);
+    
+    // MatchService에서 사용하는 메서드 추가
+    Flux<Match> findByReceiverId(UserId receiverId);
+    Flux<Match> findByRequesterId(UserId requesterId);
+    Flux<Match> findByUserIdInvolved(UserId userId);
+    Mono<Match> findCompletedMatchByUserAndMaterial(UserId userId, StudyMaterialId materialId);
 
     Mono<Boolean> existsPendingMatchBetween(UserId user1, UserId user2);
     Mono<Boolean> existsActiveMAtchForMaterial(StudyMaterialId materialId);

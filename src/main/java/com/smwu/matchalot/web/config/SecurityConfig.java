@@ -84,6 +84,10 @@ public class SecurityConfig {
                         .pathMatchers("/api/v1/auth/**").permitAll()
                         .pathMatchers("/login/**", "/oauth2/**").permitAll()
                         .pathMatchers("/actuator/**").permitAll()
+                        // Swagger UI 및 API 문서 경로 허용
+                        .pathMatchers("/swagger-ui.html", "/swagger-ui/**").permitAll()
+                        .pathMatchers("/api-docs/**", "/api-docs.yaml/**").permitAll()
+                        .pathMatchers("/webjars/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials/subjects").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials/exam-types").permitAll()

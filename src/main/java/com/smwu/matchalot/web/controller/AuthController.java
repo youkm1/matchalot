@@ -383,7 +383,7 @@ public class AuthController {
     private void deleteAuthTokenCookie(ServerHttpResponse response, String path) {
         ResponseCookie cookie = ResponseCookie.from("auth-token", "") // 빈 값으로 설정하여 삭제
                 .httpOnly(true)
-                .secure(true) // ✨ 삭제 시에도 'Secure'와 'SameSite' 속성이 일치해야 함
+                .secure(true)
                 .sameSite("Lax") // ✨ 삭제 시에도 'SameSite' 속성이 일치해야 함
                 .maxAge(Duration.ZERO) // 즉시 만료
                 .path(path)
@@ -418,9 +418,9 @@ public class AuthController {
     private void setSecureCookie(ServerHttpResponse response, String name, String value) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(true) // 이 부분을 true로 설정 (매우 중요)
+                .secure(true)
                 .sameSite("Lax")
-                .maxAge(Duration.ofDays(7)) // Max-Age를 Duration으로 설정
+                .maxAge(Duration.ofDays(7))
                 .path("/")
                 .build();
         response.addCookie(cookie);

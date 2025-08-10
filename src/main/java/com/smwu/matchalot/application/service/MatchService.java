@@ -1,16 +1,15 @@
 package com.smwu.matchalot.application.service;
 
+import com.smwu.matchalot.application.event.MatchEvent;
 import com.smwu.matchalot.domain.model.entity.Match;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
-import com.smwu.matchalot.domain.model.entity.User;
-import com.smwu.matchalot.domain.model.vo.MatchId;
-import com.smwu.matchalot.domain.model.vo.MatchStatus;
-import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
-import com.smwu.matchalot.domain.model.vo.UserId;
+import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.domain.reposiotry.MatchRepository;
-import org.springframework.context.ApplicationEventPublisher;
+import com.smwu.matchalot.domain.reposiotry.StudyMaterialRepository;
+import com.smwu.matchalot.domain.reposiotry.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -18,117 +17,111 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import com.smwu.matchalot.application.event.MatchEvent;
-
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 @Slf4j
 public class MatchService {
+
     private final MatchRepository matchRepository;
+    private final StudyMaterialRepository studyMaterialRepository;
+    private final UserRepository userRepository;
     private final UserService userService;
-    private final StudyMaterialService studyMaterialService;
     private final ApplicationEventPublisher eventPublisher;
 
-    public Mono<Boolean> hasCompletedMatch(UserId userId, StudyMaterialId materialId) {
-        return getMyMatches(userId)
-                .filter(match -> match.getStatus() == MatchStatus.COMPLETED)
-                .filter(match ->
-                        match.getRequesterMaterialId().equals(materialId) ||
-                                match.getReceiverMaterialId().equals(materialId)
-                )
-                .hasElements();
-    }
-    @Transactional
-    public Mono<Match> requestMatch(UserId requesterId,StudyMaterialId requesterMaterialId, UserId receiverId) {
-        return validateMatchRequest(requesterId, requesterMaterialId,receiverId)
-                .flatMap(ignored->findPartnerMaterial(receiverId, requesterMaterialId))
-                .flatMap((StudyMaterial partnerMaterial) -> {
-
-                    Match newMatch = new Match(
-                            requesterId,
-                            receiverId,
-                            requesterMaterialId,
-                            partnerMaterial.getId()
-                    );
+    public Mono<Match> requestMatch(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId) {
+        long startTime = System.currentTimeMillis();
+        
+        return validateMatchRequest(requesterId, requesterMaterialId, receiverId)
+                .doOnNext(v -> log.info("⏱️ Validation completed in {}ms", 
+                    System.currentTimeMillis() - startTime))
+                .flatMap(ignored -> findPartnerMaterial(receiverId, requesterMaterialId))
+                .doOnNext(m -> log.info("⏱️ Partner material found in {}ms", 
+                    System.currentTimeMillis() - startTime))
+                .flatMap(partnerMaterial -> {
+                    Match newMatch = new Match(requesterId, receiverId, requesterMaterialId, partnerMaterial.getId());
                     return matchRepository.save(newMatch)
                             .doOnNext(match -> {
-                                // 매치 요청 이벤트 발행
+                                long eventStart = System.currentTimeMillis();
+                                log.info("⏱️ Match saved to DB in {}ms", eventStart - startTime);
+                                
                                 eventPublisher.publishEvent(new MatchEvent(
-                                    this,
-                                    receiverId.value().toString(),
-                                    "MATCH_REQUEST",
-                                    Map.of(
-                                        "matchId", match.getId().value(),
-                                        "requesterId", requesterId.value(),
-                                        "materialId", requesterMaterialId.value()
-                                    )
+                                        this,
+                                        receiverId.value().toString(),
+                                        "MATCH_REQUEST",
+                                        Map.of(
+                                                "matchId", match.getId().value(),
+                                                "requesterId", requesterId.value(),
+                                                "requesterMaterialId", requesterMaterialId.value()
+                                        )
                                 ));
+                                
+                                log.info("⏱️ Event published in {}ms", 
+                                    System.currentTimeMillis() - eventStart);
+                                log.info("✅ Total match request processing time: {}ms", 
+                                    System.currentTimeMillis() - startTime);
                             });
-                });
+                })
+                .doOnError(error -> log.error("매칭 요청 실패", error));
     }
+
     public Mono<Match> acceptMatch(MatchId matchId, UserId userId) {
+        long startTime = System.currentTimeMillis();
+        
         return matchRepository.findById(matchId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("매칭을 찾을 수 없습니다")))
                 .flatMap(match -> {
-                    // 권한 체크 - 받는사람만 수락 가능
-                    if (!match.isReceiver(userId)) {
+                    if (!match.getReceiverId().equals(userId)) {
                         return Mono.error(new IllegalStateException("매칭을 수락할 권한이 없습니다"));
                     }
-
-                    // 만료 체크
-                    if (LocalDateTime.now().isAfter(match.getExpiredAt())) {
-                        return matchRepository.save(match.expire())
-                                .then(Mono.error(new IllegalStateException("만료된 매칭입니다")));
-                    }
-
-                    // 수락 처리
-                    return matchRepository.save(match.accept())
-                            .doOnNext(acceptedMatch -> {
-                                // 매치 수락 이벤트 발행
+                    Match acceptedMatch = match.accept();
+                    return matchRepository.save(acceptedMatch)
+                            .doOnNext(m -> {
+                                long eventStart = System.currentTimeMillis();
+                                log.info("⏱️ Match accepted and saved in {}ms", 
+                                    eventStart - startTime);
+                                
                                 eventPublisher.publishEvent(new MatchEvent(
-                                    this,
-                                    match.getRequesterId().value().toString(),
-                                    "MATCH_ACCEPTED",
-                                    Map.of("matchId", matchId.value())
+                                        this,
+                                        match.getRequesterId().value().toString(),
+                                        "MATCH_ACCEPTED",
+                                        Map.of(
+                                                "matchId", m.getId().value(),
+                                                "accepterId", userId.value()
+                                        )
                                 ));
+                                
+                                log.info("⏱️ Accept event published in {}ms", 
+                                    System.currentTimeMillis() - eventStart);
+                                log.info("✅ Total match accept processing time: {}ms", 
+                                    System.currentTimeMillis() - startTime);
                             });
                 });
-    }
-
-    public Flux<StudyMaterial> findPotentialMatches(UserId requesterId, StudyMaterialId studyMaterialId) {
-        return studyMaterialService.getStudyMaterial(studyMaterialId)
-                .flatMapMany(requesterMaterial ->
-                        studyMaterialService.getStudyMaterialsBySubjectAndExamType(
-                                requesterMaterial.getSubject(),
-                                requesterMaterial.getExamType()
-                        )
-                )
-                .filter(material -> !material.getUploaderId().equals(requesterId))
-                .filter(material -> !material.getId().equals(studyMaterialId));
-
     }
 
     public Mono<Match> rejectMatch(MatchId matchId, UserId userId) {
         return matchRepository.findById(matchId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("매칭을 찾을 수 없습니다")))
                 .flatMap(match -> {
-                    if (!match.isReceiver(userId)) {
+                    if (!match.getReceiverId().equals(userId)) {
                         return Mono.error(new IllegalStateException("매칭을 거절할 권한이 없습니다"));
                     }
-                    return matchRepository.save(match.reject())
-                            .doOnNext(rejectedMatch -> {
-                                // 매치 거절 이벤트 발행
+                    Match rejectedMatch = match.reject();
+                    return matchRepository.save(rejectedMatch)
+                            .doOnNext(m -> {
                                 eventPublisher.publishEvent(new MatchEvent(
-                                    this,
-                                    match.getRequesterId().value().toString(),
-                                    "MATCH_REJECTED",
-                                    Map.of("matchId", matchId.value())
+                                        this,
+                                        match.getRequesterId().value().toString(),
+                                        "MATCH_REJECTED",
+                                        Map.of(
+                                                "matchId", m.getId().value(),
+                                                "rejecterId", userId.value()
+                                        )
                                 ));
                             });
                 });
     }
-
 
     public Mono<Match> completeMatch(MatchId matchId, UserId userId) {
         return matchRepository.findById(matchId)
@@ -141,87 +134,100 @@ public class MatchService {
                         return Mono.error(new IllegalStateException("수락된 매칭만 완료할 수 있습니다"));
                     }
 
-                    // 매칭 완료 후 신뢰도 업데이트
-                    return matchRepository.save(match.complete())
-                            .flatMap(completedMatch -> updateTrustScoresForGoodMatch(match.getRequesterId(), match.getReceiverId())
-                                    .then(Mono.just(completedMatch)));
+                    Match completedMatch = match.complete();
+                    return matchRepository.save(completedMatch)
+                            .flatMap(m -> {
+                                Mono<Void> updateRequesterScore = userService.updateTrustScore(
+                                        match.getRequesterId(), true).then();
+                                Mono<Void> updateReceiverScore = userService.updateTrustScore(
+                                        match.getReceiverId(), true).then();
+
+                                return Mono.when(updateRequesterScore, updateReceiverScore)
+                                        .thenReturn(m);
+                            })
+                            .doOnNext(m -> {
+                                // 매칭 완료 이벤트 발행 (양쪽 모두에게 알림)
+                                String otherUserId = userId.equals(match.getRequesterId()) 
+                                    ? match.getReceiverId().value().toString()
+                                    : match.getRequesterId().value().toString();
+                                
+                                eventPublisher.publishEvent(new MatchEvent(
+                                        this,
+                                        otherUserId,
+                                        "MATCH_COMPLETED",
+                                        Map.of(
+                                                "matchId", m.getId().value(),
+                                                "completedBy", userId.value(),
+                                                "trustScoreUpdated", true
+                                        )
+                                ));
+                                
+                                log.info("✅ 매칭 완료: matchId={}, completedBy={}", 
+                                    m.getId().value(), userId.value());
+                            });
                 });
     }
-    private Mono<Void> validateRequesterMaterial(UserId requesterId, StudyMaterialId materialId) {
-        return studyMaterialService.getStudyMaterial(materialId)
-                .flatMap(material -> {
-                    if (!material.isUploadedBy(requesterId)) {
-                        return Mono.error(new IllegalStateException("본인의 족보만 매칭에 사용할 수 있습니다"));
+
+    private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
+        return studyMaterialRepository.findById(requesterMaterialId)
+                .flatMap(requesterMaterial -> {
+                    return studyMaterialRepository.findByUploaderIdAndSubjectAndExamType(
+                            partnerId,
+                            requesterMaterial.getSubject(),
+                            requesterMaterial.getExamType()
+                    ).next()
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException(
+                                    "매칭 상대방이 해당 과목과 시험 유형의 자료를 보유하지 않습니다"
+                            )));
+                });
+    }
+
+    public Flux<StudyMaterial> findPotentialMatches(UserId userId, StudyMaterialId materialId) {
+        return studyMaterialRepository.findById(materialId)
+                .flatMapMany(material -> {
+                    return studyMaterialRepository.findBySubjectAndExamType(
+                            material.getSubject(),
+                            material.getExamType()
+                    ).filter(m -> !m.getUploaderId().equals(userId));
+                });
+    }
+
+    public Flux<Match> getReceivedRequests(UserId userId) {
+        return matchRepository.findByReceiverId(userId)
+                .filter(match -> match.getStatus() == MatchStatus.PENDING);
+    }
+
+    public Flux<Match> getSentRequests(UserId userId) {
+        return matchRepository.findByRequesterId(userId)
+                .filter(match -> match.getStatus() == MatchStatus.PENDING);
+    }
+
+    public Flux<Match> getMyMatches(UserId userId) {
+        return matchRepository.findByUserIdInvolved(userId);
+    }
+
+    private Mono<Void> validateMatchRequest(UserId requesterId, StudyMaterialId requesterMaterialId, UserId partnerId) {
+        if (requesterId.equals(partnerId)) {
+            return Mono.error(new IllegalArgumentException("본인과는 매칭할 수 없습니다"));
+        }
+
+        return userRepository.findById(requesterId)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("요청자 정보를 찾을 수 없습니다")))
+                .flatMap(requester -> {
+                    if (!requester.participableInMatch()) {
+                        return Mono.error(new IllegalStateException("매칭에 참여할 수 없는 상태입니다. 신뢰도를 확인해주세요."));
                     }
                     return Mono.empty();
                 });
     }
 
-    private Mono<Void> updateTrustScoresForGoodMatch(UserId requesterId, UserId partnerId) {
-        return Mono.when(
-                userService.updateTrustScore(requesterId, true),
-                userService.updateTrustScore(partnerId, true)
-        );
+    public Mono<Boolean> hasCompletedMatch(UserId userId, StudyMaterialId materialId) {
+        return matchRepository.findCompletedMatchByUserAndMaterial(userId, materialId)
+                .hasElement();
     }
-    private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
-        return studyMaterialService.getStudyMaterial(requesterMaterialId)
-                .doOnNext(material -> log.info("📖 요청자 자료 정보: subject={}, examType={}",
-                        material.getSubject().name(), material.getExamType().type()))
-                .flatMap(requesterMaterial ->
-                        studyMaterialService.getApprovedStudyMaterialsBySubjectAndExamType(  // ✅ APPROVED만 조회
-                                        requesterMaterial.getSubject(),
-                                        requesterMaterial.getExamType()
-                                )
-                                .doOnNext(material -> log.info("📚 승인된 동일 과목 자료 발견: uploaderId={}, materialId={}",
-                                        material.getUploaderId().value(), material.getId().value()))
-                                .filter(material -> material.isUploadedBy(partnerId))
-                                .next()
-                                .switchIfEmpty(Mono.error(new IllegalArgumentException("상대방이 해당 과목의 족보를 가지고 있지 않습니다")))
-                                .doOnError(error -> log.error("파트너 자료 찾기 실패: {}", error.getMessage())));
-    }
-
-    private Mono<Void> validateMatchRequest(UserId requesterId, StudyMaterialId requesterMaterialId, UserId partnerId) {
-        log.info("🔍🔍🔍 validateMatchRequest 시작");
-        log.info("👤 requesterId: {}", requesterId.value());
-        log.info("📚 requesterMaterialId: {}", requesterMaterialId.value());
-        log.info("👥 partnerId: {}", partnerId.value());
-
-        if (requesterId.equals(partnerId)) {
-            log.error("자기 자신과 매칭 시도");
-            return Mono.error(new IllegalArgumentException("본인과는 매칭할 수 없습니다"));
-        }
-        log.info(" 자기 자신 매칭 체크 통과");
-
-        return userService.getUserById(requesterId)
-                .doOnNext(user -> log.info("요청자 정보: userId={}, role={}, trustScore={}",
-                        user.getId().value(), user.getRole(), user.getTrustScore().value()))
-                .filter(User::participableInMatch)
-                .doOnNext(user -> log.info("participableInMatch 통과"))
-                .switchIfEmpty(Mono.error(new IllegalStateException("신뢰도가 부족하여 매칭할 수 없습니다")))
-                .then(validateRequesterMaterial(requesterId, requesterMaterialId))
-                .doOnSuccess(ignored -> log.info(" validateMatchRequest 전체 성공"))
-                .doOnError(error -> log.error(" validateMatchRequest 실패: {}", error.getMessage()));
-    }
-
-    public Flux<Match> getReceivedRequests(UserId userId) {
-        return matchRepository.findPendingRequestsToUser(userId)
-                .filter(match -> !LocalDateTime.now().isAfter(match.getExpiredAt()));
-    }
-
-
-    public Flux<Match> getSentRequests(UserId userId) {
-        return matchRepository.findSentRequestsByUser(userId)
-                .filter(match -> !LocalDateTime.now().isAfter(match.getExpiredAt()));
-    }
-
-
-    public Flux<Match> getMyMatches(UserId userId) {
-        return matchRepository.findByUserId(userId);
-    }
-
 
     public Flux<Match> getActiveMatches(UserId userId) {
-        return matchRepository.findByUserId(userId)
+        return matchRepository.findByUserIdInvolved(userId)
                 .filter(match -> match.getStatus().isActive())
                 .filter(match -> !match.isExpired());
     }
