@@ -14,6 +14,8 @@ public interface StudyMaterialR2dbcRepository extends R2dbcRepository<StudyMater
 
     Flux<StudyMaterialEntity> findByUploaderId(Long uploaderId);
 
+    Flux<StudyMaterialEntity> findByUploaderIdAndSubjectAndExamType(Long uploaderId, String subject, String examType);
+
     Flux<StudyMaterialEntity> findBySubjectAndYearAndSeason(String subject, Integer year, String season);
 
     Mono<Boolean> existsBySubjectAndExamTypeAndYearAndSeason(String subject, String examType, Integer year, String season);

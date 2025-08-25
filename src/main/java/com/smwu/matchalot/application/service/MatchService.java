@@ -79,7 +79,7 @@ public class MatchService {
                     return matchRepository.save(acceptedMatch)
                             .doOnNext(m -> {
                                 long eventStart = System.currentTimeMillis();
-                                log.info("⏱️ Match accepted and saved in {}ms", 
+                                log.info("Match accepted and saved in {}ms",
                                     eventStart - startTime);
                                 
                                 eventPublisher.publishEvent(new MatchEvent(
@@ -92,9 +92,9 @@ public class MatchService {
                                         )
                                 ));
                                 
-                                log.info("⏱️ Accept event published in {}ms", 
+                                log.info("Accept event published in {}ms",
                                     System.currentTimeMillis() - eventStart);
-                                log.info("✅ Total match accept processing time: {}ms", 
+                                log.info("Total match accept processing time: {}ms",
                                     System.currentTimeMillis() - startTime);
                             });
                 });

@@ -62,6 +62,11 @@ public interface MatchR2dbcRepository extends R2dbcRepository<MatchEntity, Long>
             "(receiver_id = :userId AND receiver_material_id = :materialId)")
     Mono<Long> countByUserIdAndStudyMaterialId(Long userId, Long materialId);
 
-
+    @Query("SELECT * FROM matches WHERE " +
+            "((requester_id = :userId AND requester_material_id = :materialId) OR " +
+            "(receiver_id = :userId AND receiver_material_id = :materialId)) AND " +
+            "status = 'COMPLETED' " +
+            "ORDER BY created_at DESC LIMIT 1")
+    Mono<MatchEntity> findCompletedMatchByUserAndMaterial(Long userId, Long materialId);
 
 }

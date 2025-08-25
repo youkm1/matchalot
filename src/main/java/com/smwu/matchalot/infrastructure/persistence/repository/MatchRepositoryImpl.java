@@ -60,6 +60,27 @@ public class MatchRepositoryImpl implements MatchRepository {
     }
 
     @Override
+    public Flux<Match> findByReceiverId(UserId receiverId) {
+        return null;
+    }
+
+    @Override
+    public Flux<Match> findByRequesterId(UserId requesterId) {
+        return null;
+    }
+
+    @Override
+    public Flux<Match> findByUserIdInvolved(UserId userId) {
+        return null;
+    }
+
+    @Override
+    public Mono<Match> findCompletedMatchByUserAndMaterial(UserId userId, StudyMaterialId materialId) {
+        return r2dbcRepository.findCompletedMatchByUserAndMaterial(userId.value(), materialId.value())
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public Flux<Match> findPendingMatchesByUserId(UserId userId) {
         return r2dbcRepository.findByUserIdAndStatus(userId.value(), PENDING.name())
                 .map(mapper::toDomain);

@@ -88,6 +88,13 @@ public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
     }
 
     @Override
+    public Flux<StudyMaterial> findByUploaderIdAndSubjectAndExamType(UserId uploaderId, Subject subject, ExamType examType) {
+        return r2dbcRepository.findByUploaderIdAndSubjectAndExamType(
+                uploaderId.value(), subject.name(), examType.type())
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public Mono<Boolean> existsBySubjectAndExamTypeAndSemester(Subject subject, ExamType examType, Semester semester) {
         return r2dbcRepository.existsBySubjectAndExamTypeAndYearAndSeason(
                 subject.name(), examType.type(), semester.year(), semester.season());
