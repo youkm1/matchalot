@@ -1,14 +1,13 @@
-name: Deploy 
-
+name: Deploy 
 on:
-      push:
-            branches: [ main ]
-            paths:  
-                  - 'src/**'
-                  - 'build.gradle'
-                  - 'Dockerfile'
-                  - 'settings.gradle'  
-      
+  push:
+    branches: [ main ]
+    paths:  
+      - 'src/**'
+      - 'build.gradle'
+      - 'Dockerfile'
+      - 'settings.gradle'  
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -16,7 +15,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4 
-
+      
     - name: Deploy to Azure VM
       uses: appleboy/ssh-action@v0.1.10
       with:
@@ -26,21 +25,57 @@ jobs:
         port: 22
         timeout: 300s
         script: |
-          echo "코드 업데이트 중..."
+          echo "=== 코드 업데이트 시작 ==="
           cd /home/youkm0806/matchalot/backend
           git fetch origin main
           git reset --hard origin/main
           git clean -fd 
           
-          echo "Backend 애플리케이션 빌드 중..."
-          ./gradlew bootJar # 또는 프로젝트 설정에 따라 ./gradlew build
-
-          echo "Docker Compose 배포하되 백엔드만 잠깐 꺼짐!"
+          echo "=== Backend 애플리케이션 빌드 시작 ==="
+          chmod +x gradlew
+          ./gradlew clean bootJar
+          
+          # 빌드 성공 여부 확인
+          if [ ! -f "build/libs/*.jar" ]; then
+            echo "Gradle 빌드 실패!"
+            exit 1
+          fi
+          
+          echo "=== Docker 배포 시작 ==="
           cd ../devops
-          docker-compose down backend
+          
+          # 올바른 문법으로 backend 컨테이너 중지
+          docker-compose stop backend
+          docker-compose rm -f backend
+          
+          # backend 이미지 재빌드 및 시작
           docker-compose up --build -d backend
-
-          echo "헬스체크 중..."
+          
+          echo "=== 배포 대기 중 (30초) ==="
           sleep 30
-          docker-compose logs backend tail -10
-          curl -f http://localhost:8080/actuator/health && echo "배포 성공" || echo "배포 실패"
+          
+          echo "=== 헬스체크 시작 ==="
+          docker-compose ps backend
+          
+          # 컨테이너 상태 확인
+          if ! docker-compose ps backend | grep -q "Up"; then
+            echo "Backend 컨테이너가 실행되지 않음!"
+            docker-compose logs backend
+            exit 1
+          fi
+          
+          # API 헬스체크
+          for i in {1..6}; do
+            if curl -f http://localhost:8080/actuator/health; then
+              echo "배포 성공! (시도 $i/6)"
+              break
+            else
+              echo "헬스체크 실패, 10초 후 재시도... ($i/6)"
+              if [ $i -eq 6 ]; then
+                echo "배포 실패 - 헬스체크 최종 실패"
+                docker-compose logs backend --tail 20
+                exit 1
+              fi
+              sleep 10
+            fi
+          done
