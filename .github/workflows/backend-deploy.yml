@@ -31,51 +31,51 @@ jobs:
           git reset --hard origin/main
           git clean -fd 
           
-          echo "=== Backend 애플리케이션 빌드 시작 ==="
-          chmod +x gradlew
-          ./gradlew clean bootJar
-          
-          # 빌드 성공 여부 확인
-          if [ ! -f "build/libs/*.jar" ]; then
-            echo "Gradle 빌드 실패!"
-            exit 1
-          fi
-          
-          echo "=== Docker 배포 시작 ==="
+          echo "=== Docker 빌드 및 배포 시작 ==="
           cd ../devops
           
-          # 올바른 문법으로 backend 컨테이너 중지
-          docker-compose stop backend
-          docker-compose rm -f backend
+          # 기존 backend 컨테이너 정리
+          docker-compose stop backend || true
+          docker-compose rm -f backend || true
           
-          # backend 이미지 재빌드 및 시작
+          # 기존 이미지도 삭제 (완전 새로 빌드)
+          docker rmi devops_backend || true
+          
+          # backend 이미지 재빌드 및 시작 (Docker 내부에서 Gradle 빌드)
           docker-compose up --build -d backend
           
-          echo "=== 배포 대기 중 (30초) ==="
-          sleep 30
-          
-          echo "=== 헬스체크 시작 ==="
-          docker-compose ps backend
+          echo "=== 배포 상태 확인 (60초 대기) ==="
+          sleep 60
           
           # 컨테이너 상태 확인
           if ! docker-compose ps backend | grep -q "Up"; then
             echo "Backend 컨테이너가 실행되지 않음!"
-            docker-compose logs backend
+            echo "=== 컨테이너 로그 ==="
+            docker-compose logs backend --tail 50
+            echo "=== 빌드 중간 컨테이너 확인 ==="
+            docker ps -a | grep matchalot
             exit 1
           fi
           
-          # API 헬스체크
-          for i in {1..6}; do
-            if curl -f http://localhost:8080/actuator/health; then
-              echo "배포 성공! (시도 $i/6)"
-              break
+          echo "=== API 헬스체크 시작 ==="
+          # API 헬스체크 (10번 재시도, 각 15초 간격)
+          for i in {1..10}; do
+            echo "헬스체크 시도 $i/10..."
+            if curl -f -s http://localhost:8080/actuator/health; then
+              echo ""
+              echo "배포 성공! (시도 $i/10)"
+              docker-compose ps backend
+              exit 0
             else
-              echo "헬스체크 실패, 10초 후 재시도... ($i/6)"
-              if [ $i -eq 6 ]; then
+              echo "헬스체크 실패, 15초 후 재시도..."
+              if [ $i -eq 10 ]; then
                 echo "배포 실패 - 헬스체크 최종 실패"
-                docker-compose logs backend --tail 20
+                echo "=== 최신 로그 ==="
+                docker-compose logs backend --tail 30
+                echo "=== 컨테이너 상태 ==="
+                docker-compose ps backend
                 exit 1
               fi
-              sleep 10
+              sleep 15
             fi
           done
