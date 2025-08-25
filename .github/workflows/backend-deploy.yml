@@ -31,49 +31,61 @@ jobs:
           git reset --hard origin/main
           git clean -fd 
           
-          echo "=== Docker 빌드 및 배포 시작 ==="
+          echo "=== Docker 컨테이너 재배포 시작 ==="
           cd ../devops
           
-          # 기존 backend 컨테이너 정리
-          docker-compose stop backend || true
-          docker-compose rm -f backend || true
+          # 기존 백엔드 컨테이너 완전 정리
+          echo "기존 컨테이너 중지 및 삭제 중..."
+          docker-compose stop backend 2>/dev/null || true
+          docker-compose rm -f backend 2>/dev/null || true
           
-          # 기존 이미지도 삭제 (완전 새로 빌드)
-          docker rmi devops_backend || true
+          # 기존 이미지도 삭제하여 완전 새로 빌드
+          echo "기존 이미지 삭제 중..."
+          docker rmi devops_backend 2>/dev/null || true
+          docker rmi devops-backend 2>/dev/null || true
+          docker rmi $(docker images | grep matchalot | awk '{print $3}') 2>/dev/null || true
           
-          # backend 이미지 재빌드 및 시작 (Docker 내부에서 Gradle 빌드)
+          echo "새로운 컨테이너 빌드 및 시작 중..."
+          # Docker 컨테이너 내부에서 Gradle 빌드가 실행됨 (Java 호스트 설치 불필요)
           docker-compose up --build -d backend
           
-          echo "=== 배포 상태 확인 (60초 대기) ==="
+          echo "=== 컨테이너 시작 대기 (60초) ==="
           sleep 60
           
-          # 컨테이너 상태 확인
-          if ! docker-compose ps backend | grep -q "Up"; then
-            echo "Backend 컨테이너가 실행되지 않음!"
-            echo "=== 컨테이너 로그 ==="
-            docker-compose logs backend --tail 50
-            echo "=== 빌드 중간 컨테이너 확인 ==="
-            docker ps -a | grep matchalot
+          echo "=== 컨테이너 상태 확인 ==="
+          if docker-compose ps backend | grep -q "Up"; then
+            echo "백엔드 컨테이너가 정상적으로 실행 중"
+          else
+            echo "백엔드 컨테이너 실행 실패!"
+            echo "컨테이너 로그:"
+            docker-compose logs backend --tail 100
+            echo "컨테이너 상태:"
+            docker-compose ps -a
             exit 1
           fi
           
           echo "=== API 헬스체크 시작 ==="
-          # API 헬스체크 (10번 재시도, 각 15초 간격)
-          for i in {1..10}; do
-            echo "헬스체크 시도 $i/10..."
-            if curl -f -s http://localhost:8080/actuator/health; then
-              echo ""
-              echo "배포 성공! (시도 $i/10)"
+          # 10회 재시도, 각 15초 간격
+          for attempt in {1..10}; do
+            echo "헬스체크 시도 $attempt/10..."
+            
+            if curl -f -s --max-time 10 http://localhost:8080/actuator/health > /dev/null 2>&1; then
+              echo "배포 성공! API가 정상 응답 "
+              echo "최종 상태:"
               docker-compose ps backend
+              echo "메모리 사용량:"
+              docker stats --no-stream backend 2>/dev/null || true
               exit 0
             else
-              echo "헬스체크 실패, 15초 후 재시도..."
-              if [ $i -eq 10 ]; then
-                echo "배포 실패 - 헬스체크 최종 실패"
-                echo "=== 최신 로그 ==="
-                docker-compose logs backend --tail 30
-                echo "=== 컨테이너 상태 ==="
+              echo "API 응답 없음, 15초 후 재시도..."
+              if [ $attempt -eq 10 ]; then
+                echo "배포 실패 - API 헬스체크 최종 실패"
+                echo "최종 로그 (최근 50줄):"
+                docker-compose logs backend --tail 50
+                echo "컨테이너 상태:"
                 docker-compose ps backend
+                echo "포트 확인:"
+                netstat -tlnp | grep 8080 || true
                 exit 1
               fi
               sleep 15
