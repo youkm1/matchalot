@@ -34,6 +34,10 @@ public class StudyMaterialController {
             @Valid @RequestBody StudyMaterialUploadRequest request,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
+        if (oauth2User == null) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+        
         String email = oauth2User.getAttribute("email");
         Email userEmail = Email.of(email);
         log.info("email: {}", email);
@@ -85,9 +89,19 @@ public class StudyMaterialController {
             @PathVariable("materialId") Long materialId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
+        StudyMaterialId id = StudyMaterialId.of(materialId);
+        
+        // 로그인하지 않은 경우 - 미리보기만 제공
+        if (oauth2User == null) {
+            return studyMaterialService.getStudyMaterial(id)
+                    .flatMap(this::toPreviewResponse)
+                    .map(ResponseEntity::ok)
+                    .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
+        }
+        
+        // 로그인한 경우 - 매칭 여부에 따라 전체/미리보기 제공
         String email = oauth2User.getAttribute("email");
         Email userEmail = Email.of(email);
-        StudyMaterialId id = StudyMaterialId.of(materialId);
 
         return userService.getUserByEmail(userEmail)
                 .flatMap(user -> {
@@ -111,6 +125,10 @@ public class StudyMaterialController {
     public Flux<StudyMaterialSummaryResponse> getMyStudyMaterials(
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
+        if (oauth2User == null) {
+            return Flux.empty();
+        }
+        
         String email = oauth2User.getAttribute("email");
         Email userEmail = Email.of(email);
 
@@ -124,6 +142,11 @@ public class StudyMaterialController {
             @PathVariable("materialId") Long materialId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
+        if (oauth2User == null) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "로그인이 필요합니다")));
+        }
+        
         String email = oauth2User.getAttribute("email");
         Email userEmail = Email.of(email);
         StudyMaterialId id = StudyMaterialId.of(materialId);
@@ -143,10 +166,11 @@ public class StudyMaterialController {
     public Mono<ResponseEntity<Map<String, Object>>> getAvailableSubjects() {
         // 현재는 상수로 정의된 과목들을 반환
         var subjects = java.util.List.of(
-                Subject.KOREAN_WOMEN_HISTORY.name(),
-                Subject.ALGORITHM.name(),
-                Subject.DIGITAL_LOGIC_CIRCUIT.name(),
-                Subject.MODERN_THOUGH.name()
+                Subject.IMAGE_PROCESSING.name(),
+                Subject.LINUX.name(),
+                Subject.KOREAN_CULTURE_UNDERSTANDING.name(),
+                Subject.CLASSIC_FIELD_STORY.name(),
+                Subject.DIGITAL_PHILOSOPHY.name()
         );
 
         return Mono.just(ResponseEntity.ok(Map.of(

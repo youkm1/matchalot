@@ -31,6 +31,7 @@ public class MatchWebSocketHandler implements WebSocketHandler {
     public Mono<Void> handle(WebSocketSession session) {
         String userId = getUserIdFromSession(session);
         if (userId == null) {
+            log.warn("WebSocket 연결 실패: userId가 없음");
             return session.close();
         }
 

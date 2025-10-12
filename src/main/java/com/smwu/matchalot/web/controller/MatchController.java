@@ -41,7 +41,7 @@ public class MatchController {
             @Valid @RequestBody MatchRequestDto request,
             @AuthenticationPrincipal OAuth2User oAuth2User) {
 
-        // 🔍 null 체크 및 로깅 추가
+
         log.info("매칭 요청 수신: materialId={}", materialId);
 
         if (oAuth2User == null) {
