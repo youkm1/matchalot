@@ -15,6 +15,7 @@ import org.springframework.r2dbc.connection.R2dbcTransactionManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.ReactiveTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.transaction.reactive.TransactionalOperator;
 
 @Configuration
 @EnableR2dbcRepositories
@@ -25,6 +26,11 @@ public class DatabaseConfig  {
     @Bean
     public ReactiveTransactionManager transactionManager(ConnectionFactory connectionFactory) {
         return new R2dbcTransactionManager(connectionFactory);
+    }
+    
+    @Bean
+    public TransactionalOperator transactionalOperator(ReactiveTransactionManager transactionManager) {
+        return TransactionalOperator.create(transactionManager);
     }
     @Value("${spring.r2dbc.url}")
     private String r2dbcUrl;

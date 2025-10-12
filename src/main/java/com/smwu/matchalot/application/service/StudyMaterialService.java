@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -20,6 +21,7 @@ public class StudyMaterialService {
 
     private final StudyMaterialRepository studyMaterialRepository;
     private final UserService userService;
+    private final TransactionalOperator transactionalOperator;
 
     @Transactional
     public Mono<StudyMaterial> uploadStudyMaterial(UserId uploaderId,
@@ -90,7 +92,8 @@ public class StudyMaterialService {
     }
 
     public Mono<StudyMaterial> approveMaterial(StudyMaterialId materialId) {
-        return studyMaterialRepository.findById(materialId)
+        return transactionalOperator.transactional(
+            studyMaterialRepository.findById(materialId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("족보 승인 중 문제가 발생하였습니다.")))
                 .flatMap(material -> {
                     //새로운 객체 생성 대신 기준 상태를 변경하는 식으로
@@ -100,7 +103,8 @@ public class StudyMaterialService {
                             .doOnSuccess(saved -> log.info("족보 승인 완료: {} (ID: {})",
                                     saved.getTitle(), saved.getId().value()))
                             .flatMap(saved -> checkForUserPromotion(saved.getUploaderId(), saved));
-                });
+                })
+        );
     }
 
 

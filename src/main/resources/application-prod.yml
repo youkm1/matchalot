@@ -49,7 +49,7 @@ logging:
     root: INFO
     
     # 애플리케이션 상세 
-    com.smwu.matchalot: DEBUG
+    com.smwu.matchalot: INFO
     
     # Spring Security 관련 상세 
     org.springframework.security: DEBUG

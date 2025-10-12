@@ -61,17 +61,22 @@ public class MatchRepositoryImpl implements MatchRepository {
 
     @Override
     public Flux<Match> findByReceiverId(UserId receiverId) {
-        return null;
+        return r2dbcRepository.findByUserId(receiverId.value())
+                .filter(entity -> entity.getReceiverId().equals(receiverId.value()))
+                .map(mapper::toDomain);
     }
 
     @Override
     public Flux<Match> findByRequesterId(UserId requesterId) {
-        return null;
+        return r2dbcRepository.findByUserId(requesterId.value())
+                .filter(entity -> entity.getRequesterId().equals(requesterId.value()))
+                .map(mapper::toDomain);
     }
 
     @Override
     public Flux<Match> findByUserIdInvolved(UserId userId) {
-        return null;
+        return r2dbcRepository.findByUserId(userId.value())
+                .map(mapper::toDomain);
     }
 
     @Override

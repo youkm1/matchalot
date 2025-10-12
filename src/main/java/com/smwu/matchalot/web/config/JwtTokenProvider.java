@@ -40,7 +40,7 @@ public class JwtTokenProvider {
                 .signWith(secretKey)
                 .compact();
 
-        log.debug("Token created: {} \n for user: {}", token, userId);
+        log.debug("Token created for user: {}", userId);
         return token;
     }
 

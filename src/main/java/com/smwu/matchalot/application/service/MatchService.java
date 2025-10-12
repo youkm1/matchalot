@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -20,7 +21,6 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 @Slf4j
 public class MatchService {
 
@@ -29,6 +29,7 @@ public class MatchService {
     private final UserRepository userRepository;
     private final UserService userService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TransactionalOperator transactionalOperator;
 
     public Mono<Match> requestMatch(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId) {
         long startTime = System.currentTimeMillis();
@@ -124,7 +125,8 @@ public class MatchService {
     }
 
     public Mono<Match> completeMatch(MatchId matchId, UserId userId) {
-        return matchRepository.findById(matchId)
+        return transactionalOperator.transactional(
+            matchRepository.findById(matchId)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("매칭을 찾을 수 없습니다")))
                 .flatMap(match -> {
                     if (!match.isParticipant(userId)) {
@@ -165,7 +167,8 @@ public class MatchService {
                                 log.info("✅ 매칭 완료: matchId={}, completedBy={}", 
                                     m.getId().value(), userId.value());
                             });
-                });
+                })
+        );
     }
 
     private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
@@ -234,8 +237,10 @@ public class MatchService {
 
 
     public Mono<Long> cleanupExpiredMatches() {
-        return matchRepository.findExpiredMatches()
+        return transactionalOperator.transactional(
+            matchRepository.findExpiredMatches()
                 .flatMap(match -> matchRepository.save(match.expire()))
-                .count();
+                .count()
+        );
     }
 }
