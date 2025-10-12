@@ -38,7 +38,7 @@ public class StudyMaterial {
     }
 
     public String getDisplayTitle() {
-        return String.format("%s (%s) %s (%s)",
+        return String.format("%s (%s) %s",
                 subject.name(),
                 semester.getDisplayName(),
                 examType.type()
