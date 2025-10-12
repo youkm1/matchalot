@@ -105,15 +105,25 @@ public class StudyMaterialController {
 
         return userService.getUserByEmail(userEmail)
                 .flatMap(user -> {
-                    return matchService.hasCompletedMatch(user.getId(), id)
-                            .flatMap(hasAccess -> {
-                                if (hasAccess) {
+                    // 관리자인 경우 모든 족보에 대해 전체 접근 권한
+                    return userService.isAdminByEmail(userEmail)
+                            .flatMap(isAdmin -> {
+                                if (isAdmin) {
                                     return studyMaterialService.getStudyMaterial(id)
                                             .flatMap(this::toFullResponse);
-                                } else {
-                                    return studyMaterialService.getStudyMaterial(id)
-                                            .flatMap(this::toPreviewResponse);
                                 }
+                                
+                                // 일반 사용자는 매칭 여부에 따라 접근 권한 결정
+                                return matchService.hasCompletedMatch(user.getId(), id)
+                                        .flatMap(hasAccess -> {
+                                            if (hasAccess) {
+                                                return studyMaterialService.getStudyMaterial(id)
+                                                        .flatMap(this::toFullResponse);
+                                            } else {
+                                                return studyMaterialService.getStudyMaterial(id)
+                                                        .flatMap(this::toPreviewResponse);
+                                            }
+                                        });
                             });
                 })
                 .map(ResponseEntity::ok)

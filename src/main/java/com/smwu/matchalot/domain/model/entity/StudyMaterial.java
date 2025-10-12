@@ -33,16 +33,13 @@ public class StudyMaterial {
         return uploaderId.equals(userId);
     }
 
-    public int getQuestionCount() {
-        return questions.getQuestionCount();
-    }
 
     public String getDisplayTitle() {
         return String.format("%s (%s) %s (%s)",
                 subject.name(),
                 semester.getDisplayName(),
-                examType.type(),
-                getQuestionCount());
+                examType.type()
+        );
     }
 
 

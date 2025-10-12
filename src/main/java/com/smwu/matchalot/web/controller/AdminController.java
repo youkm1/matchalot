@@ -6,6 +6,7 @@ import com.smwu.matchalot.application.service.UserService;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.web.dto.AdminReportResponse;  // ✅ 추가된 import
+import com.smwu.matchalot.web.dto.StudyMaterialResponse;
 import com.smwu.matchalot.web.dto.StudyMaterialSummaryResponse;
 import com.smwu.matchalot.web.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,33 @@ public class AdminController {
         return checkAdminPermission(oauth2User)
                 .thenMany(studyMaterialService.getPendingMaterials())
                 .flatMap(this::toSummaryResponse);
+    }
+
+    /**
+     * 관리자가 승인 대기 중인 족보 상세 조회 (전체 내용 포함)
+     */
+    @GetMapping("/materials/{materialId}")
+    public Mono<ResponseEntity<StudyMaterialResponse>> getPendingMaterialDetail(
+            @PathVariable Long materialId,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
+
+        StudyMaterialId id = StudyMaterialId.of(materialId);
+
+        return checkAdminPermission(oauth2User)
+                .then(studyMaterialService.getStudyMaterial(id))
+                .flatMap(material -> {
+                    // 승인 대기 중인 자료만 조회 가능
+                    if (!material.isPendingApproval()) {
+                        return Mono.error(new IllegalArgumentException("승인 대기 중인 자료가 아닙니다"));
+                    }
+                    return toFullResponse(material);
+                })
+                .map(ResponseEntity::ok)
+                .onErrorReturn(IllegalArgumentException.class,
+                        ResponseEntity.badRequest().build())
+                .onErrorReturn(IllegalStateException.class,
+                        ResponseEntity.status(HttpStatus.FORBIDDEN).build())
+                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
     }
 
     @DeleteMapping("/users/{userId}")
@@ -240,6 +268,19 @@ public class AdminController {
                         uploader.getTrustScore().value()
                 ))
                 .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음", 0)));
+    }
+
+    /**
+     * StudyMaterial을 Full Response로 변환 (관리자용 - 모든 내용 포함)
+     */
+    private Mono<StudyMaterialResponse> toFullResponse(StudyMaterial studyMaterial) {
+        return userService.getUserById(studyMaterial.getUploaderId())
+                .map(uploader -> StudyMaterialResponse.from(
+                        studyMaterial,
+                        uploader.getNickname(),
+                        uploader.getTrustScore().value()
+                ))
+                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial, "알 수 없음", 0)));
     }
 
     /**
