@@ -2,6 +2,19 @@ spring:
   application:
     name: matchalot
     email: ${ADMIN_EMAIL}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          timeout: 5000
   
   r2dbc:
     url: r2dbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require
@@ -105,6 +118,8 @@ logging:
     
     # 세션 관련 
     org.springframework.session: DEBUG
+
+
 
 management:
   endpoints:

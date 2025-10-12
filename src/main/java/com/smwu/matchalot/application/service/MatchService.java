@@ -30,6 +30,7 @@ public class MatchService {
     private final UserService userService;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionalOperator transactionalOperator;
+    private final NotificationService notificationService;
 
     public Mono<Match> requestMatch(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId) {
         long startTime = System.currentTimeMillis();
@@ -144,7 +145,28 @@ public class MatchService {
                                 Mono<Void> updateReceiverScore = userService.updateTrustScore(
                                         match.getReceiverId(), true).then();
 
-                                return Mono.when(updateRequesterScore, updateReceiverScore)
+                                // 양쪽 사용자에게 매칭 완료 알림 생성
+                                Mono<Void> notifyRequester = userRepository.findById(match.getReceiverId())
+                                        .flatMap(receiver -> studyMaterialRepository.findById(match.getRequesterMaterialId())
+                                                .flatMap(material -> notificationService.notifyMatchCompleted(
+                                                        match.getRequesterId(),
+                                                        receiver.getNickname(),
+                                                        material.getTitle(),
+                                                        m.getId().value()
+                                                )))
+                                        .then();
+                                
+                                Mono<Void> notifyReceiver = userRepository.findById(match.getRequesterId())
+                                        .flatMap(requester -> studyMaterialRepository.findById(match.getReceiverMaterialId())
+                                                .flatMap(material -> notificationService.notifyMatchCompleted(
+                                                        match.getReceiverId(),
+                                                        requester.getNickname(),
+                                                        material.getTitle(),
+                                                        m.getId().value()
+                                                )))
+                                        .then();
+
+                                return Mono.when(updateRequesterScore, updateReceiverScore, notifyRequester, notifyReceiver)
                                         .thenReturn(m);
                             })
                             .doOnNext(m -> {

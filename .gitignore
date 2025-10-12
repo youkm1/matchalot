@@ -38,6 +38,13 @@ out/
 application.yml
 schema.sql
 
+### Environment Variables ###
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+
 ### Images and Media ###
 *.jpg
 *.jpeg

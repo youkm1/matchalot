@@ -58,10 +58,10 @@ public class AdminController {
     }
 
     /**
-     * 관리자가 승인 대기 중인 족보 상세 조회 (전체 내용 포함)
+     * 관리자가 모든 족보 상세 조회 (전체 내용 포함)
      */
     @GetMapping("/materials/{materialId}")
-    public Mono<ResponseEntity<StudyMaterialResponse>> getPendingMaterialDetail(
+    public Mono<ResponseEntity<StudyMaterialResponse>> getMaterialDetail(
             @PathVariable Long materialId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
@@ -69,13 +69,7 @@ public class AdminController {
 
         return checkAdminPermission(oauth2User)
                 .then(studyMaterialService.getStudyMaterial(id))
-                .flatMap(material -> {
-                    // 승인 대기 중인 자료만 조회 가능
-                    if (!material.isPendingApproval()) {
-                        return Mono.error(new IllegalArgumentException("승인 대기 중인 자료가 아닙니다"));
-                    }
-                    return toFullResponse(material);
-                })
+                .flatMap(this::toFullResponse)
                 .map(ResponseEntity::ok)
                 .onErrorReturn(IllegalArgumentException.class,
                         ResponseEntity.badRequest().build())

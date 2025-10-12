@@ -19,6 +19,7 @@ import java.util.Set;
 @Slf4j
 public class UserService {
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Value("${spring.application.email}")
     private String ADMIN_EMAILS;
@@ -64,6 +65,11 @@ public class UserService {
         return userRepository.findById(userId)
                 .map(User::promoteToMember)
                 .flatMap(userRepository::save)
+                .flatMap(user -> {
+                    // 알림 생성
+                    return notificationService.notifyUserPromotion(user.getId(), "정회원")
+                            .then(Mono.just(user));
+                })
                 .doOnSuccess(user -> log.info("등업 성공:{} {}", user.getId().value(), user.getRole().getDescription()));
     }
 

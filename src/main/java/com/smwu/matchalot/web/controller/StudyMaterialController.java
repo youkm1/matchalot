@@ -64,24 +64,34 @@ public class StudyMaterialController {
 
     @GetMapping
     public Flux<StudyMaterialSummaryResponse> getAllStudyMaterials(
-
             @RequestParam(value = "subject", required = false) String subject,
-            @RequestParam(value = "examType", required = false) String examType) {
+            @RequestParam(value = "examType", required = false) String examType,
+            @AuthenticationPrincipal OAuth2User oauth2User) {
 
-        if (subject != null && examType != null) {
-            // 과목과 시험 유형으로 필터링
-            return studyMaterialService.getStudyMaterialsBySubjectAndExamType(
-                            Subject.of(subject), ExamType.of(examType))
-                    .flatMap(this::toSummaryResponse);
-        } else if (subject != null) {
-            // 과목으로만 필터링
-            return studyMaterialService.getStudyMaterialsBySubject(Subject.of(subject))
-                    .flatMap(this::toSummaryResponse);
-        } else {
-            // 모든 족보 조회
-            return studyMaterialService.getAllStudyMaterials()
-                    .flatMap(this::toSummaryResponse);
-        }
+        // 관리자인지 확인
+        Mono<Boolean> isAdminCheck = oauth2User != null ? 
+            userService.isAdminByEmail(Email.of(oauth2User.getAttribute("email"))) :
+            Mono.just(false);
+
+        return isAdminCheck.flatMapMany(isAdmin -> {
+            if (subject != null && examType != null) {
+                // 과목과 시험 유형으로 필터링
+                return studyMaterialService.getStudyMaterialsBySubjectAndExamType(
+                                Subject.of(subject), ExamType.of(examType))
+                        .flatMap(this::toSummaryResponse);
+            } else if (subject != null) {
+                // 과목으로만 필터링 
+                return studyMaterialService.getStudyMaterialsBySubject(Subject.of(subject))
+                        .flatMap(this::toSummaryResponse);
+            } else {
+                // 모든 족보 조회 - 관리자는 모든 상태, 일반 사용자는 승인된 것만
+                return isAdmin ? 
+                    studyMaterialService.getAllStudyMaterialsForAdmin()
+                        .flatMap(this::toSummaryResponse) :
+                    studyMaterialService.getAllStudyMaterials()
+                        .flatMap(this::toSummaryResponse);
+            }
+        });
     }
 
     @GetMapping("/{materialId}")
@@ -105,11 +115,11 @@ public class StudyMaterialController {
 
         return userService.getUserByEmail(userEmail)
                 .flatMap(user -> {
-                    // 관리자인 경우 모든 족보에 대해 전체 접근 권한
+                    // 관리자인 경우 모든 족보에 대해 전체 접근 권한 (승인 상태 무관)
                     return userService.isAdminByEmail(userEmail)
                             .flatMap(isAdmin -> {
                                 if (isAdmin) {
-                                    return studyMaterialService.getStudyMaterial(id)
+                                    return studyMaterialService.getStudyMaterialForAdmin(id)
                                             .flatMap(this::toFullResponse);
                                 }
                                 

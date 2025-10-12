@@ -22,6 +22,7 @@ public class StudyMaterialService {
     private final StudyMaterialRepository studyMaterialRepository;
     private final UserService userService;
     private final TransactionalOperator transactionalOperator;
+    private final NotificationService notificationService;
 
     @Transactional
     public Mono<StudyMaterial> uploadStudyMaterial(UserId uploaderId,
@@ -45,11 +46,23 @@ public class StudyMaterialService {
     }
 
     public Flux<StudyMaterial> getAllStudyMaterials() {
-        return studyMaterialRepository.findAll();
+        return studyMaterialRepository.findByStatus(MaterialStatus.APPROVED);
     }
 
     public Flux<StudyMaterial> getStudyMaterialsBySubject(Subject subject) {
-        return studyMaterialRepository.findBySubject(subject);
+        return studyMaterialRepository.findBySubjectAndStatus(subject, MaterialStatus.APPROVED);
+    }
+    
+    public Flux<StudyMaterial> getAllStudyMaterialsForAdmin() {
+        return studyMaterialRepository.findAll();
+    }
+    
+    public Mono<StudyMaterial> getStudyMaterialForAdmin(StudyMaterialId id) {
+        if (id == null || id.value() == null) {
+            return Mono.error(new IllegalArgumentException("유효하지 않은 족보의 ID"));
+        }
+        return studyMaterialRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")));
     }
 
     public Flux<StudyMaterial> getApprovedStudyMaterialsBySubjectAndExamType(Subject subject, ExamType examType) {
@@ -57,7 +70,7 @@ public class StudyMaterialService {
     }
 
     public Flux<StudyMaterial> getStudyMaterialsBySubjectAndExamType(Subject subject, ExamType examType) {
-        return studyMaterialRepository.findBySubjectAndExamType(subject, examType);
+        return studyMaterialRepository.findBySubjectAndExamTypeAndStatus(subject, examType, MaterialStatus.APPROVED);
     }
 
     public Flux<StudyMaterial> getMyStudyMaterials(UserId uploaderId) {
@@ -102,7 +115,14 @@ public class StudyMaterialService {
                     return studyMaterialRepository.save(approvedMaterial)
                             .doOnSuccess(saved -> log.info("족보 승인 완료: {} (ID: {})",
                                     saved.getTitle(), saved.getId().value()))
-                            .flatMap(saved -> checkForUserPromotion(saved.getUploaderId(), saved));
+                            .flatMap(saved -> 
+                                // 업로드 사용자에게 승인 알림
+                                notificationService.notifyMaterialApproval(
+                                    saved.getUploaderId(), 
+                                    saved.getTitle(), 
+                                    saved.getId().value()
+                                ).then(checkForUserPromotion(saved.getUploaderId(), saved))
+                            );
                 })
         );
     }
@@ -115,6 +135,15 @@ public class StudyMaterialService {
                     StudyMaterial rejectedMaterial = material.reject();
 
                     return studyMaterialRepository.save(rejectedMaterial)
+                            .flatMap(saved -> 
+                                // 업로드 사용자에게 거절 알림
+                                notificationService.notifyMaterialRejection(
+                                    saved.getUploaderId(),
+                                    saved.getTitle(),
+                                    reason,
+                                    saved.getId().value()
+                                ).then(Mono.just(saved))
+                            )
                             .doOnSuccess(saved -> log.info("족보 거절: {} (ID: {}), 사유: {}",
                                     saved.getTitle(), saved.getId().value(), reason));
                 });
