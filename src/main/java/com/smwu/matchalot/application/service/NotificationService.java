@@ -4,7 +4,7 @@ import com.smwu.matchalot.domain.model.entity.Notification;
 import com.smwu.matchalot.domain.model.entity.Notification.NotificationType;
 import com.smwu.matchalot.domain.model.vo.NotificationId;
 import com.smwu.matchalot.domain.model.vo.UserId;
-import com.smwu.matchalot.domain.reposiotry.NotificationRepository;
+import com.smwu.matchalot.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,32 +18,15 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationStreamService streamService;
-    private final EmailService emailService;
-    private final UserService userService;
 
     public Mono<Notification> createNotification(UserId userId, NotificationType type, 
                                                  String title, String message, String relatedEntityId) {
         Notification notification = new Notification(userId, type, title, message, relatedEntityId);
         return notificationRepository.save(notification)
-                .flatMap(saved -> {
+                .doOnSuccess(saved -> {
                     log.info("알림 생성: 사용자={}, 타입={}, 제목={}", userId.value(), type, title);
-                    
                     // 실시간 알림 전송 (SSE)
                     streamService.emit(userId, saved);
-                    
-                    // 이메일 전송 (비동기)
-                    return userService.getUserById(userId)
-                            .flatMap(user -> emailService.sendNotificationEmail(
-                                    user.getEmail(), 
-                                    type, 
-                                    title, 
-                                    message
-                            ))
-                            .then(Mono.just(saved))
-                            .onErrorResume(e -> {
-                                log.warn("이메일 전송 실패, SSE만 전송: {}", e.getMessage());
-                                return Mono.just(saved);
-                            });
                 });
     }
 

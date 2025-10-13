@@ -1,4 +1,4 @@
-package com.smwu.matchalot.domain.reposiotry;
+package com.smwu.matchalot.domain.repository;
 
 import com.smwu.matchalot.domain.model.entity.Match;
 import com.smwu.matchalot.domain.model.vo.MatchId;

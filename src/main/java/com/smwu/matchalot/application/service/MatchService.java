@@ -4,19 +4,17 @@ import com.smwu.matchalot.application.event.MatchEvent;
 import com.smwu.matchalot.domain.model.entity.Match;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
-import com.smwu.matchalot.domain.reposiotry.MatchRepository;
-import com.smwu.matchalot.domain.reposiotry.StudyMaterialRepository;
-import com.smwu.matchalot.domain.reposiotry.UserRepository;
+import com.smwu.matchalot.domain.repository.MatchRepository;
+import com.smwu.matchalot.domain.repository.StudyMaterialRepository;
+import com.smwu.matchalot.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
@@ -44,25 +42,25 @@ public class MatchService {
                 .flatMap(partnerMaterial -> {
                     Match newMatch = new Match(requesterId, receiverId, requesterMaterialId, partnerMaterial.getId());
                     return matchRepository.save(newMatch)
-                            .doOnNext(match -> {
+                            .flatMap(match -> {
                                 long eventStart = System.currentTimeMillis();
                                 log.info("⏱️ Match saved to DB in {}ms", eventStart - startTime);
                                 
-                                eventPublisher.publishEvent(new MatchEvent(
-                                        this,
-                                        receiverId.value().toString(),
-                                        "MATCH_REQUEST",
-                                        Map.of(
-                                                "matchId", match.getId().value(),
-                                                "requesterId", requesterId.value(),
-                                                "requesterMaterialId", requesterMaterialId.value()
-                                        )
-                                ));
-                                
-                                log.info("⏱️ Event published in {}ms", 
-                                    System.currentTimeMillis() - eventStart);
-                                log.info("✅ Total match request processing time: {}ms", 
-                                    System.currentTimeMillis() - startTime);
+                                // 매칭 요청받은 사용자에게 알림 전송
+                                return userRepository.findById(requesterId)
+                                        .flatMap(requester -> 
+                                                notificationService.notifyMatchRequestReceived(
+                                                        receiverId,
+                                                        requester.getNickname(),
+                                                        match.getId().value()
+                                                ))
+                                        .then(Mono.just(match))
+                                        .doOnSuccess(m -> {
+                                            log.info("⏱️ Notification sent in {}ms", 
+                                                System.currentTimeMillis() - eventStart);
+                                            log.info("✅ Total match request processing time: {}ms", 
+                                                System.currentTimeMillis() - startTime);
+                                        });
                             });
                 })
                 .doOnError(error -> log.error("매칭 요청 실패", error));

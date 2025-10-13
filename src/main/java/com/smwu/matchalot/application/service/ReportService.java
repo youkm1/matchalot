@@ -2,7 +2,7 @@ package com.smwu.matchalot.application.service;
 
 import com.smwu.matchalot.domain.model.entity.Report;
 import com.smwu.matchalot.domain.model.vo.*;
-import com.smwu.matchalot.domain.reposiotry.ReportRepository;
+import com.smwu.matchalot.domain.repository.ReportRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

@@ -2,12 +2,11 @@ package com.smwu.matchalot.infrastructure.persistence.repository;
 
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
-import com.smwu.matchalot.domain.reposiotry.StudyMaterialRepository;
+import com.smwu.matchalot.domain.repository.StudyMaterialRepository;
 import com.smwu.matchalot.infrastructure.persistence.StudyMaterialEntity;
 import com.smwu.matchalot.infrastructure.persistence.mapper.StudyMaterialMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;

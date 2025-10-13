@@ -53,8 +53,7 @@ dependencies {
     // SpringDoc OpenAPI (Swagger) - WebFlux 지원
     implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0'
     
-    // Email 지원
-    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    // Reactive 추가 기능
     implementation 'io.projectreactor.addons:reactor-extra'
 
     // Lombok

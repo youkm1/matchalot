@@ -69,9 +69,20 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE","OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("*"));  // SSE를 위한 헤더 노출
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+        
+        // SSE 엔드포인트용 특별 설정
+        CorsConfiguration sseConfiguration = new CorsConfiguration();
+        sseConfiguration.setAllowedOrigins(configuration.getAllowedOrigins());
+        sseConfiguration.setAllowedMethods(Arrays.asList("GET", "OPTIONS"));
+        sseConfiguration.setAllowedHeaders(Arrays.asList("*"));
+        sseConfiguration.setAllowCredentials(true);
+        sseConfiguration.setMaxAge(3600L);  // preflight 캐시 1시간
+        source.registerCorsConfiguration("/api/v1/notifications/stream", sseConfiguration);
+        
         return source;
     }
     @Bean

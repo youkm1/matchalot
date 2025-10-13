@@ -5,7 +5,7 @@ import com.smwu.matchalot.domain.model.vo.ReportId;
 import com.smwu.matchalot.domain.model.vo.ReportStatus;
 import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
 import com.smwu.matchalot.domain.model.vo.UserId;
-import com.smwu.matchalot.domain.reposiotry.ReportRepository;
+import com.smwu.matchalot.domain.repository.ReportRepository;
 import com.smwu.matchalot.infrastructure.persistence.ReportEntity;
 import com.smwu.matchalot.infrastructure.persistence.mapper.ReportMapper;
 import lombok.RequiredArgsConstructor;

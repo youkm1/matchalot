@@ -4,7 +4,7 @@ import com.smwu.matchalot.domain.model.entity.Notification;
 import com.smwu.matchalot.domain.model.entity.Notification.NotificationType;
 import com.smwu.matchalot.domain.model.vo.NotificationId;
 import com.smwu.matchalot.domain.model.vo.UserId;
-import com.smwu.matchalot.domain.reposiotry.NotificationRepository;
+import com.smwu.matchalot.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.r2dbc.core.DatabaseClient;
@@ -14,6 +14,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 
+//기술적 구현이므로 인프라 계층에
 @Repository
 @RequiredArgsConstructor
 @Slf4j
@@ -159,7 +160,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                 .then();
     }
 
-    private Notification mapToNotification(io.r2dbc.spi.Row row) {
+    private Notification mapToNotification(io.r2dbc.spi.Row row, io.r2dbc.spi.RowMetadata metadata) {
         return new Notification(
                 NotificationId.of(row.get("id", Long.class)),
                 UserId.of(row.get("user_id", Long.class)),

@@ -5,7 +5,7 @@ import com.smwu.matchalot.domain.model.vo.MatchId;
 import com.smwu.matchalot.domain.model.vo.MatchStatus;
 import com.smwu.matchalot.domain.model.vo.StudyMaterialId;
 import com.smwu.matchalot.domain.model.vo.UserId;
-import com.smwu.matchalot.domain.reposiotry.MatchRepository;
+import com.smwu.matchalot.domain.repository.MatchRepository;
 import com.smwu.matchalot.infrastructure.persistence.mapper.MatchMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

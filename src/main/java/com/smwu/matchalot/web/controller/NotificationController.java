@@ -6,6 +6,13 @@ import com.smwu.matchalot.application.service.UserService;
 import com.smwu.matchalot.domain.model.vo.Email;
 import com.smwu.matchalot.domain.model.vo.NotificationId;
 import com.smwu.matchalot.web.dto.NotificationResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,6 +39,7 @@ public class NotificationController {
 
     @GetMapping
     public Flux<NotificationResponse> getMyNotifications(
+            @Parameter(description = "읽지 않은 알림만 조회")
             @RequestParam(value = "unread", required = false) Boolean unreadOnly,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
@@ -53,6 +61,7 @@ public class NotificationController {
     }
 
     @GetMapping("/unread-count")
+    @Operation(summary = "읽지 않은 알림 개수 조회", description = "읽지 않은 알림의 개수를 반환합니다")
     public Mono<ResponseEntity<Map<String, Long>>> getUnreadCount(
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
@@ -70,7 +79,9 @@ public class NotificationController {
     }
 
     @PutMapping("/{notificationId}/read")
+    @Operation(summary = "알림 읽음 처리", description = "특정 알림을 읽음 상태로 변경합니다")
     public Mono<ResponseEntity<NotificationResponse>> markAsRead(
+            @Parameter(description = "알림 ID")
             @PathVariable Long notificationId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
@@ -86,6 +97,7 @@ public class NotificationController {
     }
 
     @PutMapping("/read-all")
+    @Operation(summary = "모든 알림 읽음 처리", description = "사용자의 모든 알림을 읽음 상태로 변경합니다")
     public Mono<ResponseEntity<Map<String, String>>> markAllAsRead(
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
@@ -103,7 +115,9 @@ public class NotificationController {
     }
 
     @DeleteMapping("/{notificationId}")
+    @Operation(summary = "알림 삭제", description = "특정 알림을 삭제합니다")
     public Mono<ResponseEntity<Map<String, String>>> deleteNotification(
+            @Parameter(description = "알림 ID")
             @PathVariable Long notificationId,
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
@@ -127,6 +141,12 @@ public class NotificationController {
      * 클라이언트는 이 엔드포인트에 연결하여 실시간 알림을 받을 수 있음
      */
     @GetMapping(value = "/stream", produces = "text/event-stream")
+    @Operation(summary = "실시간 알림 스트림", description = "SSE를 통한 실시간 알림을 수신합니다")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "스트림 연결 성공",
+                    content = @Content(mediaType = "text/event-stream")),
+            @ApiResponse(responseCode = "401", description = "인증 실패")
+    })
     public Flux<ServerSentEvent<NotificationResponse>> streamNotifications(
             @AuthenticationPrincipal OAuth2User oauth2User) {
 
