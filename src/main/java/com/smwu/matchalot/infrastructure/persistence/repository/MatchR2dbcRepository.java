@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 public interface MatchR2dbcRepository extends R2dbcRepository<MatchEntity, Long> {
     @Query("SELECT * FROM matches WHERE requester_id = :userId OR receiver_id = :userId ORDER BY created_at DESC")
     Flux<MatchEntity> findByUserId(Long userId);
-    @Query("SELECT * FROM matches WHERE requester_id = :userI OR receiver_id = :userId ORDER BY created_at DESC")
+    @Query("SELECT * FROM matches WHERE requester_id = :userId OR receiver_id = :userId ORDER BY created_at DESC")
     Flux<MatchEntity> findMatchesByUser(Long userId);
 
     @Query("SELECT * FROM matches WHERE (requester_id = :userId OR receiver_id = :userId) AND status = :status ORDER BY created_at DESC")
