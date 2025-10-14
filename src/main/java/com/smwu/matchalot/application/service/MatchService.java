@@ -33,7 +33,7 @@ public class MatchService {
     public Mono<Match> requestMatch(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId) {
         long startTime = System.currentTimeMillis();
         
-        return validateMatchRequest(requesterId, requesterMaterialId, receiverId)
+        return transactionalOperator.transactional(validateMatchRequest(requesterId, requesterMaterialId, receiverId)
                 .doOnNext(v -> log.info("⏱️ Validation completed in {}ms", 
                     System.currentTimeMillis() - startTime))
                 .flatMap(ignored -> findPartnerMaterial(receiverId, requesterMaterialId))
@@ -63,7 +63,7 @@ public class MatchService {
                                         });
                             });
                 })
-                .doOnError(error -> log.error("매칭 요청 실패", error));
+        )       .doOnError(error -> log.error("매칭 요청 실패", error));
     }
 
     public Mono<Match> acceptMatch(MatchId matchId, UserId userId) {
