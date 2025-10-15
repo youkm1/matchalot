@@ -62,9 +62,11 @@ public class MatchController {
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("사용자를 찾을 수 없습니다")))
                 .flatMap(user -> {
                     log.info("사용자 조회 성공: {}", user.getId().value());
+                    log.info("매칭 서비스 호출 전: requesterId={}, materialId={}, receiverId={}", 
+                        user.getId().value(), materialId, request.getReceiverId().value());
                     return matchService.requestMatch(
                             user.getId(),
-                            request.getRequesterMaterialId(),
+                            StudyMaterialId.of(materialId),
                             request.getReceiverId()
                     );
                 })
