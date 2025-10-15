@@ -19,7 +19,8 @@ public class MatchMapper {
                 StudyMaterialId.of(entity.getReceiverMaterialId()),
                 MatchStatus.valueOf(entity.getStatus()),
                 entity.getCreatedAt(),
-                entity.getExpiredAt()
+                entity.getExpiredAt(),
+                entity.getUpdatedAt()
         );
     }
 
@@ -36,6 +37,7 @@ public class MatchMapper {
         entity.setStatus(domain.getStatus().name());
         entity.setCreatedAt(domain.getCreatedAt());
         entity.setExpiredAt(domain.getExpiredAt());
+        entity.setUpdatedAt(domain.getUpdatedAt());
         return entity;
     }
 }
