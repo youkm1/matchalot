@@ -28,7 +28,7 @@ public class MatchRepositoryImpl implements MatchRepository {
         if (match.getId() == null) {
             entity.setTimestamps();
         } else {
-            entity.setUpdatedAt(match.getCreatedAt());
+            entity.setUpdatedAt();
         }
         return r2dbcRepository.save(entity)
                 .map(mapper::toDomain);

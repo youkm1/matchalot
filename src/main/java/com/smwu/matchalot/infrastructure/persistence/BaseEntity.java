@@ -43,8 +43,11 @@ public abstract class BaseEntity {
         }
     }
 
-    public void setUpdatedAt(LocalDateTime createdAt){
-        this.createdAt = createdAt;
+    public void setUpdatedAt(LocalDateTime updatedAt){
+        this.updatedAt = updatedAt;
+    }
+    
+    public void setUpdatedAt(){
         this.updatedAt = LocalDateTime.now();
     }
 }

@@ -41,7 +41,7 @@ public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
         if (studyMaterial.getId() == null) {
             entity.setTimestamps();
         } else {
-            entity.setUpdatedAt(studyMaterial.getCreatedAt());
+            entity.setUpdatedAt();
         }
         return r2dbcRepository.save(entity)
                 .map(mapper::toDomain)

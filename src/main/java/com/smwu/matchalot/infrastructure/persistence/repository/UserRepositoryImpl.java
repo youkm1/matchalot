@@ -30,7 +30,7 @@ public class UserRepositoryImpl implements UserRepository {
         if (user.getId() == null) {
             entity.setTimestamps();
         } else {
-            entity.setUpdatedAt(user.getCreatedAt());
+            entity.setUpdatedAt();
         }
         return r2dbcRepository.save(entity)
                 .map(userMapper::toDomain);

@@ -102,10 +102,10 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials/subjects").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/study-materials/exam-types").permitAll()
-                        // WebSocket 경로 허용 (인증은 핸드셰이크 시 별도 처리)
-                        .pathMatchers("/ws/**").permitAll()
                         ///api/v1/study-materials/{id}, 족보삭제, 내 자료와 업로드 api부터는 인증 필요
-
+                        
+                        // SSE는 인증 필요
+                        .pathMatchers("/api/v1/notifications/stream").authenticated()
                         .anyExchange().authenticated()
                 )
 
