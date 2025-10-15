@@ -194,14 +194,49 @@ public class MatchService {
     private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
         return studyMaterialRepository.findById(requesterMaterialId)
                 .flatMap(requesterMaterial -> {
+                    log.info("🔍 파트너 자료 검색 - partnerId: {}, subject: {}, examType: {}, year: {}, season: {}", 
+                        partnerId.value(), 
+                        requesterMaterial.getSubject(), 
+                        requesterMaterial.getExamType(),
+                        requesterMaterial.getSemester().year(),
+                        requesterMaterial.getSemester().season());
+                    
                     return studyMaterialRepository.findByUploaderIdAndSubjectAndExamType(
                             partnerId,
                             requesterMaterial.getSubject(),
                             requesterMaterial.getExamType()
-                    ).next()
-                            .switchIfEmpty(Mono.error(new IllegalArgumentException(
-                                    "매칭 상대방이 해당 과목과 시험 유형의 자료를 보유하지 않습니다"
-                            )));
+                    )
+                    .doOnNext(material -> log.info("🔍 찾은 파트너 자료: id={}, status={}, year={}, season={}, title={}", 
+                        material.getId().value(), material.getStatus(), 
+                        material.getSemester().year(), material.getSemester().season(), material.getTitle()))
+                    // 승인된 자료만 필터링
+                    .filter(material -> {
+                        boolean isApproved = material.getStatus() == com.smwu.matchalot.domain.model.vo.MaterialStatus.APPROVED;
+                        log.info("🎯 승인 상태 필터: material_id={}, status={}, isApproved={}", 
+                            material.getId().value(), material.getStatus(), isApproved);
+                        return isApproved;
+                    })
+                    // 같은 년도, 학기 필터링 (선택사항 - 비즈니스 요구사항에 따라)
+                    .filter(material -> {
+                        boolean yearMatch = material.getSemester().year() == requesterMaterial.getSemester().year();
+                        boolean seasonMatch = material.getSemester().season().equals(requesterMaterial.getSemester().season());
+                        log.info("📅 학기 필터: material_id={}, material_year={}, requester_year={}, material_season={}, requester_season={}, yearMatch={}, seasonMatch={}", 
+                            material.getId().value(),
+                            material.getSemester().year(), requesterMaterial.getSemester().year(),
+                            material.getSemester().season(), requesterMaterial.getSemester().season(),
+                            yearMatch, seasonMatch);
+                        return yearMatch && seasonMatch;
+                    })
+                    .next()
+                    .switchIfEmpty(Mono.error(new IllegalArgumentException(
+                        String.format("매칭 상대방이 해당 과목(%s), 시험유형(%s), 학기(%d-%s)의 승인된 자료를 보유하지 않습니다",
+                            requesterMaterial.getSubject().name(),
+                            requesterMaterial.getExamType().type(),
+                            requesterMaterial.getSemester().year(),
+                            requesterMaterial.getSemester().season())
+                    )))
+                    .doOnNext(found -> log.info("✅ 매칭 파트너 자료 발견: {}", found.getTitle()))
+                    .doOnError(error -> log.warn("❌ 매칭 파트너 자료 없음: {}", error.getMessage()));
                 });
     }
 
