@@ -23,9 +23,10 @@ public class Match {
     private final MatchStatus status;
     private final LocalDateTime createdAt;
     private final LocalDateTime expiredAt; //매칭만료는24시간
+    private final LocalDateTime updatedAt;
 
     public Match(UserId requesterId, UserId receiverId, StudyMaterialId requesterMaterialId, StudyMaterialId receiverMaterialId) {
-        this(null, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.PENDING, LocalDateTime.now(), LocalDateTime.now().plusDays(1));
+        this(null, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.PENDING, LocalDateTime.now(), LocalDateTime.now().plusDays(1), LocalDateTime.now());
     }
 
     public Match accept() {
@@ -35,28 +36,28 @@ public class Match {
         if (LocalDateTime.now().isAfter(expiredAt)) {
             throw new IllegalStateException("매칭이 이미 만료되었습니다");
         }
-        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, ACCEPTED, createdAt, expiredAt);
+        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, ACCEPTED, createdAt, expiredAt, LocalDateTime.now());
     }
 
     public Match reject() {
         if (status != MatchStatus.PENDING) {
             throw new IllegalStateException("대기 중인 매칭만 거절할 수 있습니다");
         }
-        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.REJECTED, createdAt, expiredAt);
+        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.REJECTED, createdAt, expiredAt, LocalDateTime.now());
     }
 
     public Match expire() {
         if (status.isFinished()) {
             throw new IllegalStateException("매칭이 완료된 상태입니다");
         }
-        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.EXPIRED, createdAt, expiredAt);
+        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.EXPIRED, createdAt, expiredAt, LocalDateTime.now());
     }
 
     public Match complete() {
         if (status != ACCEPTED) {
             throw new IllegalStateException("수락된 매칭만 완료할 수 있습니다");
         }
-        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.COMPLETED, createdAt, expiredAt);
+        return new Match(id, requesterId, receiverId, requesterMaterialId, receiverMaterialId, MatchStatus.COMPLETED, createdAt, expiredAt, LocalDateTime.now());
     }
 
     //이 매칭의 참여자인지 확인하기
