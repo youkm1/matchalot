@@ -32,10 +32,13 @@ public class MatchService {
 
     public Mono<Match> requestMatch(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId) {
         long startTime = System.currentTimeMillis();
+        log.info("🚀 requestMatch 시작 - requesterId: {}, materialId: {}, receiverId: {}", 
+            requesterId.value(), requesterMaterialId.value(), receiverId.value());
         
         return transactionalOperator.transactional(validateMatchRequest(requesterId, requesterMaterialId, receiverId)
                 .doOnNext(v -> log.info("⏱️ Validation completed in {}ms", 
                     System.currentTimeMillis() - startTime))
+                .doOnError(ex -> log.error("❌ Validation 실패: {}", ex.getMessage()))
                 .flatMap(ignored -> findPartnerMaterial(receiverId, requesterMaterialId))
                 .doOnNext(m -> log.info("⏱️ Partner material found in {}ms", 
                     System.currentTimeMillis() - startTime))
@@ -193,6 +196,13 @@ public class MatchService {
 
     private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
         return studyMaterialRepository.findById(requesterMaterialId)
+                .doOnNext(m -> log.info("📚 요청자 자료 조회 성공: id={}, subject={}, examType={}, year={}, season={}, status={}", 
+                    m.getId().value(), m.getSubject(), m.getExamType(), 
+                    m.getSemester().year(), m.getSemester().season(), m.getStatus()))
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.error("❌ 요청자 자료를 찾을 수 없음: materialId={}", requesterMaterialId.value());
+                    return Mono.error(new IllegalArgumentException("요청자 자료를 찾을 수 없습니다: " + requesterMaterialId.value()));
+                }))
                 .flatMap(requesterMaterial -> {
                     log.info("🔍 파트너 자료 검색 - partnerId: {}, subject: {}, examType: {}, year: {}, season: {}", 
                         partnerId.value(), 
@@ -265,16 +275,24 @@ public class MatchService {
     }
 
     private Mono<Void> validateMatchRequest(UserId requesterId, StudyMaterialId requesterMaterialId, UserId partnerId) {
+        log.info("🔍 validateMatchRequest 시작 - requesterId: {}, materialId: {}, partnerId: {}", 
+            requesterId.value(), requesterMaterialId.value(), partnerId.value());
+            
         if (requesterId.equals(partnerId)) {
+            log.error("❌ 본인과 매칭 시도: requesterId={}, partnerId={}", requesterId.value(), partnerId.value());
             return Mono.error(new IllegalArgumentException("본인과는 매칭할 수 없습니다"));
         }
 
         return userRepository.findById(requesterId)
+                .doOnNext(user -> log.info("✅ 요청자 조회 성공: id={}, participable={}", 
+                    user.getId().value(), user.participableInMatch()))
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("요청자 정보를 찾을 수 없습니다")))
                 .flatMap(requester -> {
                     if (!requester.participableInMatch()) {
+                        log.error("❌ 매칭 참여 불가: trustScore={}", requester.getTrustScore().value());
                         return Mono.error(new IllegalStateException("매칭에 참여할 수 없는 상태입니다. 신뢰도를 확인해주세요."));
                     }
+                    log.info("✅ validateMatchRequest 완료");
                     return Mono.empty();
                 });
     }
