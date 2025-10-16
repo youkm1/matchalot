@@ -82,6 +82,7 @@ public class MatchController {
                     log.error("권한 오류: {}", ex.getMessage());
                     return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
                 })
+                .doOnError(ex -> log.error("🚨 매칭 요청 실패 - 에러 타입: {}, 메시지: {}", ex.getClass().getSimpleName(), ex.getMessage(), ex))
                 .onErrorResume(Exception.class, ex -> {  // 🎯 모든 예외 처리
                     log.error("매칭 요청 처리 중 예상치 못한 오류: {}", ex.getMessage(), ex);
                     return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
