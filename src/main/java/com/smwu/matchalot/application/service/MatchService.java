@@ -36,10 +36,10 @@ public class MatchService {
             requesterId.value(), requesterMaterialId.value(), receiverId.value());
         
         return transactionalOperator.transactional(validateMatchRequest(requesterId, requesterMaterialId, receiverId)
-                .doOnNext(v -> log.info("⏱️ Validation completed in {}ms", 
+                .doOnSuccess(v -> log.info("⏱️ Validation completed in {}ms", 
                     System.currentTimeMillis() - startTime))
                 .doOnError(ex -> log.error("❌ Validation 실패: {}", ex.getMessage()))
-                .flatMap(ignored -> findPartnerMaterial(receiverId, requesterMaterialId))
+                .then(findPartnerMaterial(receiverId, requesterMaterialId))
                 .doOnNext(m -> log.info("⏱️ Partner material found in {}ms", 
                     System.currentTimeMillis() - startTime))
                 .flatMap(partnerMaterial -> {
