@@ -4,6 +4,7 @@ import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.entity.User;
 import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.domain.repository.StudyMaterialRepository;
+import com.smwu.matchalot.domain.repository.MatchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class StudyMaterialService {
 
     private final StudyMaterialRepository studyMaterialRepository;
+    private final MatchRepository matchRepository;
     private final UserService userService;
     private final TransactionalOperator transactionalOperator;
     private final NotificationService notificationService;
@@ -93,6 +95,39 @@ public class StudyMaterialService {
         }
         return studyMaterialRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")));
+    }
+    
+    // 매칭 완료된 사용자가 상대방 족보에 접근할 때 사용
+    public Mono<StudyMaterial> getStudyMaterialWithMatchAccess(StudyMaterialId id, UserId userId) {
+        if (id == null || id.value() == null) {
+            return Mono.error(new IllegalArgumentException("유효하지 않은 족보의 ID"));
+        }
+        
+        return studyMaterialRepository.findById(id)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")))
+                .flatMap(material -> {
+                    // 1. 본인이 업로드한 족보인 경우 접근 허용
+                    if (material.isUploadedBy(userId)) {
+                        return Mono.just(material);
+                    }
+                    
+                    // 2. 승인된 족보인 경우 접근 허용
+                    if (material.getStatus() == MaterialStatus.APPROVED) {
+                        return Mono.just(material);
+                    }
+                    
+                    // 3. 매칭 완료를 통한 접근 권한 확인
+                    return matchRepository.hasAccessToMaterial(userId, id)
+                            .flatMap(hasAccess -> {
+                                if (hasAccess) {
+                                    log.info("매칭 완료를 통한 족보 접근: userId={}, materialId={}", 
+                                        userId.value(), id.value());
+                                    return Mono.just(material);
+                                } else {
+                                    return Mono.error(new IllegalStateException("해당 족보에 접근할 권한이 없습니다"));
+                                }
+                            });
+                });
     }
 
     public Mono<Void> deleteStudyMaterial(StudyMaterialId id, UserId requestUserId) {

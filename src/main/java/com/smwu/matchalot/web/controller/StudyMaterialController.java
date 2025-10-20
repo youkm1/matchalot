@@ -123,16 +123,13 @@ public class StudyMaterialController {
                                             .flatMap(this::toFullResponse);
                                 }
                                 
-                                // 일반 사용자는 매칭 여부에 따라 접근 권한 결정
-                                return matchService.hasCompletedMatch(user.getId(), id)
-                                        .flatMap(hasAccess -> {
-                                            if (hasAccess) {
-                                                return studyMaterialService.getStudyMaterial(id)
-                                                        .flatMap(this::toFullResponse);
-                                            } else {
-                                                return studyMaterialService.getStudyMaterial(id)
-                                                        .flatMap(this::toPreviewResponse);
-                                            }
+                                // 일반 사용자는 새로운 접근 권한 체크 메서드 사용
+                                return studyMaterialService.getStudyMaterialWithMatchAccess(id, user.getId())
+                                        .flatMap(this::toFullResponse)
+                                        .onErrorResume(IllegalStateException.class, ex -> {
+                                            // 접근 권한이 없는 경우 미리보기만 제공
+                                            return studyMaterialService.getStudyMaterial(id)
+                                                    .flatMap(this::toPreviewResponse);
                                         });
                             });
                 })
