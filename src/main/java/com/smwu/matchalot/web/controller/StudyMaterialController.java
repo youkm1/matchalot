@@ -3,6 +3,7 @@ package com.smwu.matchalot.web.controller;
 import com.smwu.matchalot.application.service.MatchService;
 import com.smwu.matchalot.application.service.StudyMaterialService;
 import com.smwu.matchalot.application.service.UserService;
+import com.smwu.matchalot.domain.repository.MatchRepository;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.web.dto.*;
@@ -28,6 +29,7 @@ public class StudyMaterialController {
     private final StudyMaterialService studyMaterialService;
     private final UserService userService;
     private final MatchService matchService;
+    private final MatchRepository matchRepository;
 
     @PostMapping
     public Mono<ResponseEntity<StudyMaterialResponse>> uploadStudyMaterial(
@@ -124,7 +126,7 @@ public class StudyMaterialController {
                                 }
                                 
                                 // 일반 사용자는 매칭 여부에 따라 접근 권한 결정
-                                return matchService.hasCompletedMatch(user.getId(), id)
+                                return matchRepository.hasAccessToMaterial(user.getId(), id)
                                         .flatMap(hasAccess -> {
                                             if (hasAccess) {
                                                 return studyMaterialService.getStudyMaterial(id)
