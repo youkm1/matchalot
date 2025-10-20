@@ -37,4 +37,8 @@ public interface MatchRepository {
     Mono<Long> countByUserIdAndStudyMaterialId(UserId userId, StudyMaterialId studyMaterialId);
     Mono<Long> countTotalMatchesByUserId(UserId userId);
     Mono<Long> countByUserIdAndStatus(UserId userId, MatchStatus status);
+
+    //접근권
+    Mono<Boolean> hasAccessToMaterial(UserId userId, StudyMaterialId materialId);
+
 }

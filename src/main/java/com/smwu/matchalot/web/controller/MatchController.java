@@ -66,8 +66,9 @@ public class MatchController {
                         user.getId().value(), materialId, request.getReceiverId().value());
                     return matchService.requestMatch(
                             user.getId(),
-                            StudyMaterialId.of(materialId),
-                            request.getReceiverId()
+                            request.getRequesterMaterialId(),
+                            request.getReceiverId(),
+                            request.getReceiverMaterialId()
                     );
                 })
                 .doOnNext(match -> log.info("매칭 생성 성공: {}", match.getId()))
@@ -229,23 +230,44 @@ public class MatchController {
     }
 
     private Mono<MatchResponse> toMatchResponse(Match match) {
+        log.info("🔍 toMatchResponse 시작 - matchId: {}, requesterId: {}, receiverId: {}, requesterMaterialId: {}, receiverMaterialId: {}", 
+            match.getId() != null ? match.getId().value() : "null", 
+            match.getRequesterId().value(), 
+            match.getReceiverId().value(),
+            match.getRequesterMaterialId().value(),
+            match.getReceiverMaterialId().value());
+            
         return Mono.zip(
                 getUserNickname(match.getRequesterId()),
                 getUserNickname(match.getReceiverId()),
                 getStudyMaterialTitle(match.getRequesterMaterialId()),
                 getStudyMaterialTitle(match.getReceiverMaterialId())
-        ).map(tuple -> MatchResponse.from(
+        ).map(tuple -> {
+            log.info("✅ 매칭 응답 데이터 - requesterNick: {}, receiverNick: {}, requesterTitle: {}, receiverTitle: {}", 
+                tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4());
+            return MatchResponse.from(
                 match,
                 tuple.getT1(), // requester nickname
                 tuple.getT2(), // partner nickname
                 tuple.getT3(), // requester material title
                 tuple.getT4()  // partner material title
-        ));
+            );
+        });
     }
     private Mono<String> getStudyMaterialTitle(StudyMaterialId materialId) {
+        log.info("📚 자료 제목 조회 시작 - materialId: {}", materialId.value());
         return studyMaterialService.getStudyMaterial(materialId)
+                .doOnNext(material -> log.info("✅ 자료 조회 성공 - id: {}, title: {}", 
+                    materialId.value(), material.getTitle()))
                 .map(material -> material.getTitle())
-                .switchIfEmpty(Mono.just("알 수 없음"));
+                .onErrorResume(ex -> {
+                    log.error("❌ 자료 조회 실패 - materialId: {}, error: {}", materialId.value(), ex.getMessage());
+                    return Mono.just("조회 실패");
+                })
+                .switchIfEmpty(Mono.fromSupplier(() -> {
+                    log.warn("⚠️ 자료를 찾을 수 없음 - materialId: {}", materialId.value());
+                    return "알 수 없음";
+                }));
     }
 
 }

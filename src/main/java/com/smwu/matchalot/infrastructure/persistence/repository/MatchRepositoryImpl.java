@@ -147,5 +147,9 @@ public class MatchRepositoryImpl implements MatchRepository {
         return r2dbcRepository.countTotalMatchesByUserId(userId.value());
     }
 
+    @Override
+    public Mono<Boolean> hasAccessToMaterial(UserId userId, StudyMaterialId materialId) {
+        return r2dbcRepository.hasAccessToMaterial(userId.value(), materialId.value());
+    }
 
 }

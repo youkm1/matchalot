@@ -30,24 +30,31 @@ public class MatchService {
     private final TransactionalOperator transactionalOperator;
     private final NotificationService notificationService;
 
-    public Mono<Match> requestMatch(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId) {
+    public Mono<Match> requestMatch(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId, StudyMaterialId receiverMaterialId) {
         long startTime = System.currentTimeMillis();
-        log.info("🚀 requestMatch 시작 - requesterId: {}, materialId: {}, receiverId: {}", 
-            requesterId.value(), requesterMaterialId.value(), receiverId.value());
+        log.info("🚀 requestMatch 시작 - requesterId: {}, requesterMaterialId: {}, receiverId: {}, receiverMaterialId: {}", 
+            requesterId.value(), requesterMaterialId.value(), receiverId.value(), receiverMaterialId.value());
         
         return transactionalOperator.transactional(validateMatchRequest(requesterId, requesterMaterialId, receiverId)
                 .doOnSuccess(v -> log.info("⏱️ Validation completed in {}ms", 
                     System.currentTimeMillis() - startTime))
                 .doOnError(ex -> log.error("❌ Validation 실패: {}", ex.getMessage()))
-                .then(findPartnerMaterial(receiverId, requesterMaterialId))
-                .doOnNext(m -> log.info("⏱️ Partner material found in {}ms", 
+                .then(Mono.just(receiverMaterialId))
+                .doOnNext(m -> log.info("⏱️ Receiver material ID validated in {}ms", 
                     System.currentTimeMillis() - startTime))
-                .flatMap(partnerMaterial -> {
-                    Match newMatch = new Match(requesterId, receiverId, requesterMaterialId, partnerMaterial.getId());
+                .flatMap(receiverMatId -> {
+                    Match newMatch = new Match(requesterId, receiverId, requesterMaterialId, receiverMatId);
                     return matchRepository.save(newMatch)
+                            .doOnNext(match -> log.info("💾 Match 저장 완료 - id: {}, status: {}", 
+                                match.getId() != null ? match.getId().value() : "null", match.getStatus()))
                             .flatMap(match -> {
                                 long eventStart = System.currentTimeMillis();
                                 log.info("⏱️ Match saved to DB in {}ms", eventStart - startTime);
+                                
+                                if (match.getId() == null) {
+                                    log.error("❌ Match ID가 null입니다!");
+                                    return Mono.error(new IllegalStateException("매칭 ID 생성 실패"));
+                                }
                                 
                                 // 매칭 요청받은 사용자에게 알림 전송
                                 return userRepository.findById(requesterId)
@@ -194,61 +201,6 @@ public class MatchService {
         );
     }
 
-    private Mono<StudyMaterial> findPartnerMaterial(UserId partnerId, StudyMaterialId requesterMaterialId) {
-        return studyMaterialRepository.findById(requesterMaterialId)
-                .doOnNext(m -> log.info("📚 요청자 자료 조회 성공: id={}, subject={}, examType={}, year={}, season={}, status={}", 
-                    m.getId().value(), m.getSubject(), m.getExamType(), 
-                    m.getSemester().year(), m.getSemester().season(), m.getStatus()))
-                .switchIfEmpty(Mono.defer(() -> {
-                    log.error("❌ 요청자 자료를 찾을 수 없음: materialId={}", requesterMaterialId.value());
-                    return Mono.error(new IllegalArgumentException("요청자 자료를 찾을 수 없습니다: " + requesterMaterialId.value()));
-                }))
-                .flatMap(requesterMaterial -> {
-                    log.info("🔍 파트너 자료 검색 - partnerId: {}, subject: {}, examType: {}, year: {}, season: {}", 
-                        partnerId.value(), 
-                        requesterMaterial.getSubject(), 
-                        requesterMaterial.getExamType(),
-                        requesterMaterial.getSemester().year(),
-                        requesterMaterial.getSemester().season());
-                    
-                    return studyMaterialRepository.findByUploaderIdAndSubjectAndExamType(
-                            partnerId,
-                            requesterMaterial.getSubject(),
-                            requesterMaterial.getExamType()
-                    )
-                    .doOnNext(material -> log.info("🔍 찾은 파트너 자료: id={}, status={}, year={}, season={}, title={}", 
-                        material.getId().value(), material.getStatus(), 
-                        material.getSemester().year(), material.getSemester().season(), material.getTitle()))
-                    // 승인된 자료만 필터링
-                    .filter(material -> {
-                        boolean isApproved = material.getStatus() == com.smwu.matchalot.domain.model.vo.MaterialStatus.APPROVED;
-                        log.info("🎯 승인 상태 필터: material_id={}, status={}, isApproved={}", 
-                            material.getId().value(), material.getStatus(), isApproved);
-                        return isApproved;
-                    })
-                    // 같은 년도, 학기 필터링 (선택사항 - 비즈니스 요구사항에 따라)
-                    .filter(material -> {
-                        boolean yearMatch = material.getSemester().year() == requesterMaterial.getSemester().year();
-                        boolean seasonMatch = material.getSemester().season().equals(requesterMaterial.getSemester().season());
-                        log.info("📅 학기 필터: material_id={}, material_year={}, requester_year={}, material_season={}, requester_season={}, yearMatch={}, seasonMatch={}", 
-                            material.getId().value(),
-                            material.getSemester().year(), requesterMaterial.getSemester().year(),
-                            material.getSemester().season(), requesterMaterial.getSemester().season(),
-                            yearMatch, seasonMatch);
-                        return yearMatch && seasonMatch;
-                    })
-                    .next()
-                    .switchIfEmpty(Mono.error(new IllegalArgumentException(
-                        String.format("매칭 상대방이 해당 과목(%s), 시험유형(%s), 학기(%d-%s)의 승인된 자료를 보유하지 않습니다",
-                            requesterMaterial.getSubject().name(),
-                            requesterMaterial.getExamType().type(),
-                            requesterMaterial.getSemester().year(),
-                            requesterMaterial.getSemester().season())
-                    )))
-                    .doOnNext(found -> log.info("✅ 매칭 파트너 자료 발견: {}", found.getTitle()))
-                    .doOnError(error -> log.warn("❌ 매칭 파트너 자료 없음: {}", error.getMessage()));
-                });
-    }
 
     public Flux<StudyMaterial> findPotentialMatches(UserId userId, StudyMaterialId materialId) {
         return studyMaterialRepository.findById(materialId)

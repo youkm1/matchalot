@@ -66,6 +66,10 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.mockito:mockito-core'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    //blob
+    implementation 'com.azure:azure-storage-blob:12.25.0'
+    implementation 'com.azure:azure-identity:1.12.2'
 }
 
 tasks.named('test') {

@@ -82,6 +82,16 @@ public class StudyMaterialService {
             return Mono.error(new IllegalArgumentException("유효하지 않은 족보의 ID"));
         }
         return studyMaterialRepository.findById(id)
+                .filter(material -> material.getStatus() == MaterialStatus.APPROVED)
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")));
+    }
+    
+    // 매칭 정보용 - 권한 체크 없이 기본 정보만 조회
+    public Mono<StudyMaterial> getStudyMaterialBasicInfo(StudyMaterialId id) {
+        if (id == null || id.value() == null) {
+            return Mono.error(new IllegalArgumentException("유효하지 않은 족보의 ID"));
+        }
+        return studyMaterialRepository.findById(id)
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("족보를 찾을 수 없습니다")));
     }
 

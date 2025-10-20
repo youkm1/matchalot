@@ -69,4 +69,10 @@ public interface MatchR2dbcRepository extends R2dbcRepository<MatchEntity, Long>
             "ORDER BY created_at DESC LIMIT 1")
     Mono<MatchEntity> findCompletedMatchByUserAndMaterial(Long userId, Long materialId);
 
+    @Query("SELECT COUNT(*) > 0 FROM matches WHERE " +
+            "((requester_id = :userId AND receiver_material_id = :materialId) OR " +
+            "(receiver_id = :userId AND requester_material_id = :materialId)) AND " +
+            "status = 'COMPLETED'")
+    Mono<Boolean> hasAccessToMaterial(Long userId, Long materialId);
+
 }

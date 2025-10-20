@@ -11,6 +11,9 @@ public record MatchRequestDto(
         @NotNull(message = "상대방 ID 는 필수입니다.")
         Long receiverId,
 
+        @NotNull(message = "상대방 자료 ID는 필수입니다.")
+        Long receiverMaterialId,
+
         String message
 ) {
     public StudyMaterialId getRequesterMaterialId() {
@@ -18,5 +21,8 @@ public record MatchRequestDto(
     }
     public UserId getReceiverId() {
         return UserId.of(receiverId);
+    }
+    public StudyMaterialId getReceiverMaterialId() {
+        return StudyMaterialId.of(receiverMaterialId);
     }
 }
