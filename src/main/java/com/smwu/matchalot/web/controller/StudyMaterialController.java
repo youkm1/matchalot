@@ -50,7 +50,8 @@ public class StudyMaterialController {
                         request.getSubjectVO(),
                         request.getExamTypeVO(),
                         request.getSemesterVO(),
-                        request.getQuestionsVO()
+                        request.getQuestionsVO(),
+                        request.tempPdfData()
                 ))
                 .flatMap(studyMaterial -> {
                     // 업로더 닉네임을 가져와서 응답 생성

@@ -28,7 +28,9 @@ public record StudyMaterialUploadRequest(
         @Valid
         @NotEmpty(message = "문제는 최소 1개 이상이어야 합니다")
         @Size(max = 50, message = "문제는 최대 50개까지 가능합니다")
-        List<QuestionRequest> questions
+        List<QuestionRequest> questions,
+
+        String tempPdfData
 ) {
     public Subject getSubjectVO() {
         return Subject.of(subject);

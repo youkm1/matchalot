@@ -39,7 +39,8 @@ public class StudyMaterialMapper {
                     new Semester(entity.getYear(), entity.getSeason()),
                     questions,
                     entity.getStatus() != null ? MaterialStatus.valueOf(entity.getStatus()) : MaterialStatus.PENDING,
-                    entity.getCreatedAt()
+                    entity.getCreatedAt(),
+                    entity.getTempPdfData()
             );
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Questions JSON 파싱 실패", e);
@@ -70,6 +71,7 @@ public class StudyMaterialMapper {
 
             String questionsJsonString = objectMapper.writeValueAsString(questionDtos);
             entity.setQuestionsJson(Json.of(questionsJsonString));
+            entity.setTempPdfData(domain.getTempPdfData());
             entity.setCreatedAt(domain.getCreatedAt());
             entity.setUpdatedAt(LocalDateTime.now());
 

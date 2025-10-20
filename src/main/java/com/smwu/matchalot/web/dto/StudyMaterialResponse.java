@@ -19,7 +19,8 @@ public record StudyMaterialResponse(
         Long uploaderId,
         Integer uploaderTrustScore,
         LocalDateTime createdAt,
-        String displayTitle
+        String displayTitle,
+        String tempPdfData
 ) {
     // 도메인 엔티티로부터 DTO 생성하는 정적 팩토리 메서드
     public static StudyMaterialResponse from(StudyMaterial studyMaterial, String uploaderNickname, Integer uploaderTrustScore) {
@@ -41,7 +42,8 @@ public record StudyMaterialResponse(
                 studyMaterial.getUploaderId().value(),
                 uploaderTrustScore,
                 studyMaterial.getCreatedAt(),
-                studyMaterial.getDisplayTitle()
+                studyMaterial.getDisplayTitle(),
+                studyMaterial.getTempPdfData()
         );
     }
     public static StudyMaterialResponse fromWithAnswers(StudyMaterial studyMaterial, String uploaderNickname, int trustScore) {
@@ -68,7 +70,8 @@ public record StudyMaterialResponse(
                 studyMaterial.getUploaderId().value(),
                 trustScore,
                 studyMaterial.getCreatedAt(),
-                studyMaterial.getDisplayTitle()
+                studyMaterial.getDisplayTitle(),
+                studyMaterial.getTempPdfData()
         );
     }
 }

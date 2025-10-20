@@ -36,4 +36,7 @@ public class StudyMaterialEntity extends BaseEntity {
 
     @Column("status")
     private String status;
+
+    @Column("temp_pdf_data")
+    private String tempPdfData;
 }

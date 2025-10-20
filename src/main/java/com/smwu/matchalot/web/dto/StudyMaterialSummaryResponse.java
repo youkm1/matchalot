@@ -14,7 +14,8 @@ public record StudyMaterialSummaryResponse(
         Integer questionCount,
         String uploaderNickname,
         Integer uploaderTrustScore,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String tempPdfData
 ) {
     public static StudyMaterialSummaryResponse from(StudyMaterial studyMaterial, String uploaderNickname, Integer trustScore) {
         return new StudyMaterialSummaryResponse(
@@ -27,7 +28,8 @@ public record StudyMaterialSummaryResponse(
                 studyMaterial.getQuestionCount(),
                 uploaderNickname,
                 trustScore,
-                studyMaterial.getCreatedAt()
+                studyMaterial.getCreatedAt(),
+                studyMaterial.getTempPdfData()
         );
     }
 }

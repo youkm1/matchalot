@@ -20,13 +20,18 @@ public class StudyMaterial {
     private  Questions questions;
     private MaterialStatus status;
     private  LocalDateTime createdAt;
+    private String tempPdfData;
 
     public StudyMaterial(UserId uploaderId, String title, Subject subject, ExamType examType, Semester semester, Questions questions) {
-        this(null, uploaderId, title, subject, examType, semester, questions,MaterialStatus.PENDING, LocalDateTime.now());
+        this(null, uploaderId, title, subject, examType, semester, questions,MaterialStatus.PENDING, LocalDateTime.now(), null);
+    }
+
+    public StudyMaterial(UserId uploaderId, String title, Subject subject, ExamType examType, Semester semester, Questions questions, String tempPdfData) {
+        this(null, uploaderId, title, subject, examType, semester, questions,MaterialStatus.PENDING, LocalDateTime.now(), tempPdfData);
     }
 
     public StudyMaterial(UserId uploaderId, String title, Subject subject, ExamType examType, Semester semester, Questions questions, MaterialStatus status) {
-        this(null, uploaderId, title, subject, examType, semester, questions, status, LocalDateTime.now());
+        this(null, uploaderId, title, subject, examType, semester, questions, status, LocalDateTime.now(), null);
     }
 
     public boolean isUploadedBy(UserId userId) {
@@ -68,14 +73,14 @@ public class StudyMaterial {
         if (status != MaterialStatus.PENDING) {
             throw new IllegalStateException("승인 대기 상태의 자료만 승인 가능합니다.");
         }
-        return new StudyMaterial(id, uploaderId, title, subject, examType, semester, questions, MaterialStatus.APPROVED, createdAt);
+        return new StudyMaterial(id, uploaderId, title, subject, examType, semester, questions, MaterialStatus.APPROVED, createdAt, null);
     }
 
     public StudyMaterial reject() {
         if (status != MaterialStatus.PENDING) {
             throw new IllegalStateException("승인 대기 상태의 자료만 거절 가능합니다.");
         }
-        return new StudyMaterial(id, uploaderId, title, subject, examType, semester, questions, MaterialStatus.REJECTED, createdAt);
+        return new StudyMaterial(id, uploaderId, title, subject, examType, semester, questions, MaterialStatus.REJECTED, createdAt, null);
     }
 
     public boolean canBeUsedForMatching() {
