@@ -64,12 +64,12 @@ public class MatchController {
                     log.info("사용자 조회 성공: {}", user.getId().value());
                     
                     // receiverMaterialId가 null이면 URL의 materialId 사용
-                    StudyMaterialId receiverMaterialId = request.receiverMaterialId != null 
-                        ? StudyMaterialId.of(request.receiverMaterialId)
+                    StudyMaterialId receiverMaterialId = request.receiverMaterialId() != null 
+                        ? StudyMaterialId.of(request.receiverMaterialId())
                         : StudyMaterialId.of(materialId);
                         
                     log.info("매칭 서비스 호출 전: requesterId={}, requesterMaterialId={}, receiverId={}, receiverMaterialId={}", 
-                        user.getId().value(), request.requesterMaterialId, request.getReceiverId().value(), receiverMaterialId.value());
+                        user.getId().value(), request.requesterMaterialId(), request.getReceiverId().value(), receiverMaterialId.value());
                         
                     return matchService.requestMatch(
                             user.getId(),
