@@ -72,7 +72,8 @@ public class MatchController {
                     );
                 })
                 .doOnNext(match -> log.info("매칭 생성 성공: {}", match.getId()))
-                .flatMap(this::toMatchResponse)
+                .flatMap(match -> userService.getUserByEmail(userEmail)
+                        .flatMap(user -> toMatchResponse(match, user.getId())))
                 .doOnNext(response -> log.info("응답 생성 성공: {}", response.matchId()))
                 .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
                 .onErrorResume(IllegalArgumentException.class, ex -> {
@@ -113,8 +114,8 @@ public class MatchController {
         MatchId id = MatchId.of(matchId);
 
         return userService.getUserByEmail(userEmail)
-                .flatMap(user -> matchService.acceptMatch(id, user.getId()))
-                .flatMap(this::toMatchResponse)
+                .flatMap(user -> matchService.acceptMatch(id, user.getId())
+                        .flatMap(match -> toMatchResponse(match, user.getId())))
                 .map(ResponseEntity::ok)
                 .onErrorReturn(IllegalArgumentException.class,
                         ResponseEntity.notFound().build())
@@ -135,8 +136,8 @@ public class MatchController {
         MatchId id = MatchId.of(matchId);
 
         return userService.getUserByEmail(userEmail)
-                .flatMap(user -> matchService.rejectMatch(id, user.getId()))
-                .flatMap(this::toMatchResponse)
+                .flatMap(user -> matchService.rejectMatch(id, user.getId())
+                        .flatMap(match -> toMatchResponse(match, user.getId())))
                 .map(ResponseEntity::ok)
                 .onErrorReturn(IllegalArgumentException.class,
                         ResponseEntity.notFound().build())
@@ -153,8 +154,8 @@ public class MatchController {
         MatchId id = MatchId.of(matchId);
 
         return userService.getUserByEmail(userEmail)
-                .flatMap(user -> matchService.completeMatch(id, user.getId()))
-                .flatMap(this::toMatchResponse)
+                .flatMap(user -> matchService.completeMatch(id, user.getId())
+                        .flatMap(match -> toMatchResponse(match, user.getId())))
                 .map(ResponseEntity::ok)
                 .onErrorReturn(IllegalArgumentException.class,
                         ResponseEntity.notFound().build())
@@ -167,8 +168,8 @@ public class MatchController {
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
-                .flatMapMany(user -> matchService.getReceivedRequests(user.getId()))
-                .flatMap(this::toMatchResponse);
+                .flatMapMany(user -> matchService.getReceivedRequests(user.getId())
+                        .flatMap(match -> toMatchResponse(match, user.getId())));
     }
     @GetMapping("/sent")
     public Flux<MatchResponse> getSentRequests(@AuthenticationPrincipal OAuth2User oauth2User) {
@@ -176,8 +177,8 @@ public class MatchController {
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
-                .flatMapMany(user -> matchService.getSentRequests(user.getId()))
-                .flatMap(this::toMatchResponse);
+                .flatMapMany(user -> matchService.getSentRequests(user.getId())
+                        .flatMap(match -> toMatchResponse(match, user.getId())));
     }
 
     /**
@@ -189,8 +190,8 @@ public class MatchController {
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
-                .flatMapMany(user -> matchService.getMyMatches(user.getId()))
-                .flatMap(this::toMatchResponse);
+                .flatMapMany(user -> matchService.getMyMatches(user.getId())
+                        .flatMap(match -> toMatchResponse(match, user.getId())));
     }
 
     /**
@@ -202,8 +203,8 @@ public class MatchController {
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
-                .flatMapMany(user -> matchService.getActiveMatches(user.getId()))
-                .flatMap(this::toMatchResponse);
+                .flatMapMany(user -> matchService.getActiveMatches(user.getId())
+                        .flatMap(match -> toMatchResponse(match, user.getId())));
     }
 
     @PostMapping("/cleanup")
@@ -229,13 +230,18 @@ public class MatchController {
                 .switchIfEmpty(Mono.just("알 수 없는 이용자"));
     }
 
-    private Mono<MatchResponse> toMatchResponse(Match match) {
+    private Mono<MatchResponse> toMatchResponse(Match match, UserId currentUserId) {
         log.info("🔍 toMatchResponse 시작 - matchId: {}, requesterId: {}, receiverId: {}, requesterMaterialId: {}, receiverMaterialId: {}", 
             match.getId() != null ? match.getId().value() : "null", 
             match.getRequesterId().value(), 
             match.getReceiverId().value(),
             match.getRequesterMaterialId().value(),
             match.getReceiverMaterialId().value());
+        
+        // 현재 사용자가 requester인지 receiver인지 확인하여 partnerMaterialId 결정
+        Long partnerMaterialId = match.getRequesterId().equals(currentUserId) 
+            ? match.getReceiverMaterialId().value() 
+            : match.getRequesterMaterialId().value();
             
         return Mono.zip(
                 getUserNickname(match.getRequesterId()),
@@ -243,14 +249,15 @@ public class MatchController {
                 getStudyMaterialTitle(match.getRequesterMaterialId()),
                 getStudyMaterialTitle(match.getReceiverMaterialId())
         ).map(tuple -> {
-            log.info("✅ 매칭 응답 데이터 - requesterNick: {}, receiverNick: {}, requesterTitle: {}, receiverTitle: {}", 
-                tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4());
+            log.info("✅ 매칭 응답 데이터 - requesterNick: {}, receiverNick: {}, requesterTitle: {}, receiverTitle: {}, partnerMaterialId: {}", 
+                tuple.getT1(), tuple.getT2(), tuple.getT3(), tuple.getT4(), partnerMaterialId);
             return MatchResponse.from(
                 match,
                 tuple.getT1(), // requester nickname
                 tuple.getT2(), // partner nickname
                 tuple.getT3(), // requester material title
-                tuple.getT4()  // partner material title
+                tuple.getT4(), // partner material title
+                partnerMaterialId // 현재 사용자 기준 상대방 자료 ID
             );
         });
     }

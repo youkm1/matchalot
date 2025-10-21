@@ -126,16 +126,23 @@ public class StudyMaterialController {
                                             .flatMap(this::toFullResponse);
                                 }
                                 
-                                // 일반 사용자는 매칭 여부에 따라 접근 권한 결정
-                                return matchRepository.hasAccessToMaterial(user.getId(), id)
-                                        .flatMap(hasAccess -> {
-                                            if (hasAccess) {
-                                                return studyMaterialService.getStudyMaterial(id)
-                                                        .flatMap(this::toFullResponse);
-                                            } else {
-                                                return studyMaterialService.getStudyMaterial(id)
-                                                        .flatMap(this::toPreviewResponse);
+                                // 일반 사용자는 본인 업로드 또는 매칭 여부에 따라 접근 권한 결정
+                                return studyMaterialService.getStudyMaterial(id)
+                                        .flatMap(material -> {
+                                            // 본인이 업로드한 족보인지 확인
+                                            if (material.isUploadedBy(user.getId())) {
+                                                return toFullResponse(material);
                                             }
+                                            
+                                            // 매칭으로 접근 권한이 있는지 확인
+                                            return matchRepository.hasAccessToMaterial(user.getId(), id)
+                                                    .flatMap(hasAccess -> {
+                                                        if (hasAccess) {
+                                                            return toFullResponse(material);
+                                                        } else {
+                                                            return toPreviewResponse(material);
+                                                        }
+                                                    });
                                         });
                             });
                 })

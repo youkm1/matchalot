@@ -24,7 +24,8 @@ public record MatchResponse (
                                    String requesterNickname,
                                    String receiverNickname,
                                    String requesterMaterialTitle,
-                                   String receiverMaterialTitle) {
+                                   String receiverMaterialTitle,
+                                   Long partnerMaterialId) {
 
         return new MatchResponse(
                 match.getId() != null ? match.getId().value() : null,
@@ -33,7 +34,7 @@ public record MatchResponse (
                 requesterNickname,
                 receiverNickname,
                 match.getRequesterMaterialId().value(),
-                match.getReceiverMaterialId().value(),
+                partnerMaterialId,
                 requesterMaterialTitle,
                 receiverMaterialTitle,
                 match.getStatus().name(),
