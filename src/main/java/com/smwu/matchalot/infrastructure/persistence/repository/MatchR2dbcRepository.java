@@ -75,4 +75,12 @@ public interface MatchR2dbcRepository extends R2dbcRepository<MatchEntity, Long>
             "status IN ('ACCEPTED', 'COMPLETED')")
     Mono<Boolean> hasAccessToMaterial(Long userId, Long materialId);
 
+    @Query("SELECT COUNT(*) > 0 FROM matches WHERE " +
+            "((requester_id = :requesterId AND receiver_id = :receiverId AND " +
+            "requester_material_id = :requesterMaterialId AND receiver_material_id = :receiverMaterialId) OR " +
+            "(requester_id = :receiverId AND receiver_id = :requesterId AND " +
+            "requester_material_id = :receiverMaterialId AND receiver_material_id = :requesterMaterialId)) AND " +
+            "status IN ('PENDING', 'ACCEPTED')")
+    Mono<Boolean> existsActiveMatchForSpecificMaterials(Long requesterId, Long receiverId, Long requesterMaterialId, Long receiverMaterialId);
+
 }

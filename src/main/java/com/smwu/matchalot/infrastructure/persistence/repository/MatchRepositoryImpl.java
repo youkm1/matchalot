@@ -152,4 +152,14 @@ public class MatchRepositoryImpl implements MatchRepository {
         return r2dbcRepository.hasAccessToMaterial(userId.value(), materialId.value());
     }
 
+    @Override
+    public Mono<Boolean> existsActiveMatchForSpecificMaterials(UserId requesterId, UserId receiverId, StudyMaterialId requesterMaterialId, StudyMaterialId receiverMaterialId) {
+        return r2dbcRepository.existsActiveMatchForSpecificMaterials(
+                requesterId.value(), 
+                receiverId.value(), 
+                requesterMaterialId.value(), 
+                receiverMaterialId.value()
+        );
+    }
+
 }

@@ -40,5 +40,8 @@ public interface MatchRepository {
 
     //접근권
     Mono<Boolean> hasAccessToMaterial(UserId userId, StudyMaterialId materialId);
+    
+    //중복 매칭 체크
+    Mono<Boolean> existsActiveMatchForSpecificMaterials(UserId requesterId, UserId receiverId, StudyMaterialId requesterMaterialId, StudyMaterialId receiverMaterialId);
 
 }

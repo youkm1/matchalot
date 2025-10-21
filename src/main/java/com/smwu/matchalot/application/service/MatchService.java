@@ -35,7 +35,7 @@ public class MatchService {
         log.info("🚀 requestMatch 시작 - requesterId: {}, requesterMaterialId: {}, receiverId: {}, receiverMaterialId: {}", 
             requesterId.value(), requesterMaterialId.value(), receiverId.value(), receiverMaterialId.value());
         
-        return transactionalOperator.transactional(validateMatchRequest(requesterId, requesterMaterialId, receiverId)
+        return transactionalOperator.transactional(validateMatchRequest(requesterId, requesterMaterialId, receiverId, receiverMaterialId)
                 .doOnSuccess(v -> log.info("⏱️ Validation completed in {}ms", 
                     System.currentTimeMillis() - startTime))
                 .doOnError(ex -> log.error("❌ Validation 실패: {}", ex.getMessage()))
@@ -226,26 +226,35 @@ public class MatchService {
         return matchRepository.findByUserIdInvolved(userId);
     }
 
-    private Mono<Void> validateMatchRequest(UserId requesterId, StudyMaterialId requesterMaterialId, UserId partnerId) {
-        log.info("🔍 validateMatchRequest 시작 - requesterId: {}, materialId: {}, partnerId: {}", 
-            requesterId.value(), requesterMaterialId.value(), partnerId.value());
+    private Mono<Void> validateMatchRequest(UserId requesterId, StudyMaterialId requesterMaterialId, UserId receiverId, StudyMaterialId receiverMaterialId) {
+        log.info("🔍 validateMatchRequest 시작 - requesterId: {}, requesterMaterialId: {}, receiverId: {}, receiverMaterialId: {}", 
+            requesterId.value(), requesterMaterialId.value(), receiverId.value(), receiverMaterialId.value());
             
-        if (requesterId.equals(partnerId)) {
-            log.error("❌ 본인과 매칭 시도: requesterId={}, partnerId={}", requesterId.value(), partnerId.value());
+        if (requesterId.equals(receiverId)) {
+            log.error("❌ 본인과 매칭 시도: requesterId={}, receiverId={}", requesterId.value(), receiverId.value());
             return Mono.error(new IllegalArgumentException("본인과는 매칭할 수 없습니다"));
         }
 
-        return userRepository.findById(requesterId)
-                .doOnNext(user -> log.info("✅ 요청자 조회 성공: id={}, participable={}", 
-                    user.getId().value(), user.participableInMatch()))
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("요청자 정보를 찾을 수 없습니다")))
-                .flatMap(requester -> {
-                    if (!requester.participableInMatch()) {
-                        log.error("❌ 매칭 참여 불가: trustScore={}", requester.getTrustScore().value());
-                        return Mono.error(new IllegalStateException("매칭에 참여할 수 없는 상태입니다. 신뢰도를 확인해주세요."));
+        // 중복 매칭 체크
+        return matchRepository.existsActiveMatchForSpecificMaterials(requesterId, receiverId, requesterMaterialId, receiverMaterialId)
+                .flatMap(exists -> {
+                    if (exists) {
+                        log.error("❌ 중복 매칭 시도: 같은 사용자와 같은 자료로 이미 진행 중인 매칭이 있습니다");
+                        return Mono.error(new IllegalArgumentException("이미 진행 중인 매칭이 있습니다"));
                     }
-                    log.info("✅ validateMatchRequest 완료");
-                    return Mono.empty();
+                    
+                    return userRepository.findById(requesterId)
+                            .doOnNext(user -> log.info("✅ 요청자 조회 성공: id={}, participable={}", 
+                                user.getId().value(), user.participableInMatch()))
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException("요청자 정보를 찾을 수 없습니다")))
+                            .flatMap(requester -> {
+                                if (!requester.participableInMatch()) {
+                                    log.error("❌ 매칭 참여 불가: trustScore={}", requester.getTrustScore().value());
+                                    return Mono.error(new IllegalStateException("매칭에 참여할 수 없는 상태입니다. 신뢰도를 확인해주세요."));
+                                }
+                                log.info("✅ validateMatchRequest 완료");
+                                return Mono.empty();
+                            });
                 });
     }
 
