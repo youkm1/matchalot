@@ -1,4 +1,11 @@
+server:
+  tomcat:
+    max-http-form-post-size: 2MB
 spring:
+  servlet:
+    multipart:
+      max-request-size: 2MB
+      max-file-size: 2MB
   application:
     name: matchalot
     email: ${ADMIN_EMAIL}
@@ -107,15 +114,10 @@ management:
       enabled: true
     metrics:
       enabled: true
-  metrics:
-    export:
-      simple:
+  simple:
+    metrics:
+      export:
         enabled: true
-    web:
-      server:
-        request:
-          autotime:
-            enabled: true
 
 azure:
   storage:

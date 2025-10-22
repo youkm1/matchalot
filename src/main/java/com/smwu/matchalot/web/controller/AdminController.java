@@ -258,10 +258,9 @@ public class AdminController {
         return userService.getUserById(studyMaterial.getUploaderId())
                 .map(uploader -> StudyMaterialSummaryResponse.from(
                         studyMaterial,
-                        uploader.getNickname(),
                         uploader.getTrustScore().value()
                 ))
-                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음", 0)));
+                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial,  0)));
     }
 
     /**
@@ -271,10 +270,9 @@ public class AdminController {
         return userService.getUserById(studyMaterial.getUploaderId())
                 .map(uploader -> StudyMaterialResponse.from(
                         studyMaterial,
-                        uploader.getNickname(),
                         uploader.getTrustScore().value()
                 ))
-                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial, "알 수 없음", 0)));
+                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial,  0)));
     }
 
     /**

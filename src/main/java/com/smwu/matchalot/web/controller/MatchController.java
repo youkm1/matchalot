@@ -226,10 +226,10 @@ public class MatchController {
         return userService.getUserById(studyMaterial.getUploaderId())  // Mono<User> 반환
                 .map(uploader -> StudyMaterialSummaryResponse.from(  // uploader는 User 객체
                         studyMaterial,
-                        uploader.getNickname(),           // User.getNickname() ✅
+
                         uploader.getTrustScore().value()  // User.getTrustScore() ✅
                 ))
-                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음", 0)));
+                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial,  0)));
     }
     private Mono<String> getUserNickname(UserId userId) {
         return userService.getUserById(userId)

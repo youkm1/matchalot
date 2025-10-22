@@ -12,12 +12,11 @@ public record StudyMaterialSummaryResponse(
         String semesterDisplay,
         String title,
         Integer questionCount,
-        String uploaderNickname,
         Integer uploaderTrustScore,
         LocalDateTime createdAt,
         String tempPdfData
 ) {
-    public static StudyMaterialSummaryResponse from(StudyMaterial studyMaterial, String uploaderNickname, Integer trustScore) {
+    public static StudyMaterialSummaryResponse from(StudyMaterial studyMaterial, Integer trustScore) {
         return new StudyMaterialSummaryResponse(
                 studyMaterial.getId().value(),
                 studyMaterial.getUploaderId().value(),
@@ -26,7 +25,6 @@ public record StudyMaterialSummaryResponse(
                 studyMaterial.getSemester().getDisplayName(),
                 studyMaterial.getTitle(),
                 studyMaterial.getQuestionCount(),
-                uploaderNickname,
                 trustScore,
                 studyMaterial.getCreatedAt(),
                 studyMaterial.getTempPdfData()

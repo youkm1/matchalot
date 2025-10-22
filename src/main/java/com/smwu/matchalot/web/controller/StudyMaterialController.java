@@ -54,9 +54,9 @@ public class StudyMaterialController {
                         request.tempPdfData()
                 ))
                 .flatMap(studyMaterial -> {
-                    // 업로더 닉네임을 가져와서 응답 생성
+                    // 업로더 신뢰도를 가져와서 응답 생성
                     return userService.getUserById(studyMaterial.getUploaderId())
-                            .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname(), uploader.getTrustScore().value()));
+                            .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getTrustScore().value()));
                 })
                 .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response))
                 .onErrorReturn(IllegalArgumentException.class,
@@ -228,20 +228,19 @@ public class StudyMaterialController {
         return userService.getUserById(studyMaterial.getUploaderId())
                 .map(uploader -> StudyMaterialSummaryResponse.from(
                         studyMaterial,
-                        uploader.getNickname(),
                         uploader.getTrustScore().value()))
-                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, "알 수 없음",0)));
+                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, 0)));
     }
 
     private Mono<StudyMaterialResponse> toFullResponse(StudyMaterial studyMaterial) {
         return userService.getUserById(studyMaterial.getUploaderId())
-                .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname(), uploader.getTrustScore().value()))
-                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial, "알 수 없음", 0)));
+                .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getTrustScore().value()))
+                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial, 0)));
     }
 
     private Mono<StudyMaterialResponse> toPreviewResponse(StudyMaterial studyMaterial) {
         return userService.getUserById(studyMaterial.getUploaderId())
-                .map(uploader -> StudyMaterialResponse.from(studyMaterial, uploader.getNickname(), uploader.getTrustScore().value()))
-                .switchIfEmpty(Mono.just(StudyMaterialResponse.from(studyMaterial, "알 수 없음", 0)));
+                .map(uploader -> StudyMaterialResponse.fromPreview(studyMaterial, uploader.getTrustScore().value()))
+                .switchIfEmpty(Mono.just(StudyMaterialResponse.fromPreview(studyMaterial, 0)));
     }
 }
