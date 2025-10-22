@@ -17,7 +17,8 @@ public record Subject(String name) {
     public static final Subject CLASSIC_FIELD_STORY = new Subject("고전의현장과스토리");
     public static final Subject DIGITAL_PHILOSOPHY = new Subject("디지털철학");
     public static final Subject WESTERN_HISTORY_CULTURE = new Subject("서양의역사와문화");
-    public static final Subject COMPUTER_MATH = new Subject("컴퓨터수학-최영우 굣");
+    public static final Subject COMPUTER_MATH_YO = new Subject("컴퓨터수학-최영우 교수님");
+    public static final Subject COMPUTER_MATH_HJ = new Subject("컴퓨터수학-채희준 교수님");
 
 
 }

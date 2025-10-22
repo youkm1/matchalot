@@ -202,7 +202,8 @@ public class StudyMaterialController {
                 Subject.CLASSIC_FIELD_STORY.name(),
                 Subject.DIGITAL_PHILOSOPHY.name(),
                 Subject.WESTERN_HISTORY_CULTURE.name(),
-                Subject.COMPUTER_MATH.name()
+                Subject.COMPUTER_MATH_HJ.name(),
+                Subject.COMPUTER_MATH_YO.name()
         );
 
         return Mono.just(ResponseEntity.ok(Map.of(
