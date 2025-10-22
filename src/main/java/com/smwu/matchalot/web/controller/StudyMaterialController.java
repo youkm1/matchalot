@@ -201,7 +201,8 @@ public class StudyMaterialController {
                 Subject.KOREAN_CULTURE_UNDERSTANDING.name(),
                 Subject.CLASSIC_FIELD_STORY.name(),
                 Subject.DIGITAL_PHILOSOPHY.name(),
-                Subject.WESTERN_HISTORY_CULTURE.name()
+                Subject.WESTERN_HISTORY_CULTURE.name(),
+                Subject.COMPUTER_MATH.name()
         );
 
         return Mono.just(ResponseEntity.ok(Map.of(
