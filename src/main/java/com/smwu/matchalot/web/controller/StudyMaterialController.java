@@ -196,11 +196,12 @@ public class StudyMaterialController {
     public Mono<ResponseEntity<Map<String, Object>>> getAvailableSubjects() {
         // 현재는 상수로 정의된 과목들을 반환
         var subjects = java.util.List.of(
-                Subject.IMAGE_PROCESSING.name(),
-                Subject.LINUX.name(),
+                Subject.COMPUTER_NETWORK_1.name(),
+                Subject.SOCIAL_MEDIA_UNDERSTANDING.name(),
                 Subject.KOREAN_CULTURE_UNDERSTANDING.name(),
                 Subject.CLASSIC_FIELD_STORY.name(),
-                Subject.DIGITAL_PHILOSOPHY.name()
+                Subject.DIGITAL_PHILOSOPHY.name(),
+                Subject.WESTERN_HISTORY_CULTURE.name()
         );
 
         return Mono.just(ResponseEntity.ok(Map.of(

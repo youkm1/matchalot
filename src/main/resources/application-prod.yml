@@ -99,12 +99,23 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,env,loggers
+        include: health,info,env,loggers,metrics,httptrace,threaddump,sessions
   endpoint:
     health:
       show-details: always
     loggers:
       enabled: true
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      simple:
+        enabled: true
+    web:
+      server:
+        request:
+          autotime:
+            enabled: true
 
 azure:
   storage:
