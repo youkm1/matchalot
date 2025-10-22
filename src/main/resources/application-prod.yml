@@ -6,6 +6,13 @@ spring:
     multipart:
       max-request-size: 2MB
       max-file-size: 2MB
+  webflux:
+    multipart:
+      max-in-memory-size: 2MB
+      max-disk-usage-per-part: 2MB
+      max-parts: 128
+  codec:
+    max-in-memory-size: 2MB
   application:
     name: matchalot
     email: ${ADMIN_EMAIL}
