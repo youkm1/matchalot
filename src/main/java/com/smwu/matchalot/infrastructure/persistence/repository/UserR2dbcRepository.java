@@ -13,4 +13,5 @@ public interface UserR2dbcRepository extends R2dbcRepository<UserEntity, Long> {
     Flux<UserEntity> findAllByOrderByCreatedAtDesc();
     Flux<UserEntity> findByRole(String role);
     Flux<UserEntity> findByRoleOrderByCreatedAtDesc(String role);
+
 }

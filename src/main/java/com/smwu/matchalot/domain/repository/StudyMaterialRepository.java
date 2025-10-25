@@ -28,7 +28,7 @@ public interface StudyMaterialRepository {
     Flux<StudyMaterial> findBySubjectAndStatus(Subject subject, MaterialStatus status);
     Flux<StudyMaterial> findBySubjectAndExamTypeAndStatus(Subject subject, ExamType examType, MaterialStatus status);
     
-    // JOIN 메서드들 - N+1 문제 해결
+
     Flux<StudyMaterialSummaryResponse> findAllWithUploader();
     Flux<StudyMaterialSummaryResponse> findAllWithUploaderForAdmin();
     Flux<StudyMaterialSummaryResponse> findBySubjectWithUploader(Subject subject);

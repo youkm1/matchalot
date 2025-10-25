@@ -7,6 +7,9 @@ import com.smwu.matchalot.domain.model.vo.UserRole;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
+
+
 public interface UserRepository {
     Mono<User> save(User user);
     Mono<User> findById(UserId id);
@@ -14,6 +17,7 @@ public interface UserRepository {
     Mono<Boolean> existsByEmail(Email email);
     Mono<Void> deleteById(UserId id);
     Mono<Long> countByRole(UserRole role);
+    Flux<User> findAllById(Collection<UserId> id);
     Flux<User> findAll();
     Flux<User> findByRole(UserRole role);
 }

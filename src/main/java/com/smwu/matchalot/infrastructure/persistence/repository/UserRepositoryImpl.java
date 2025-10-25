@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
+
 
 @Repository
 @RequiredArgsConstructor
@@ -61,6 +63,22 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public Mono<Long> countByRole(UserRole role) {
         return r2dbcRepository.countByRole(role.name());
+    }
+
+    @Override
+    public Flux<User> findAllById(Collection<UserId> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Flux.empty();
+        }
+        
+        // UserId를 Long으로 변환
+        Collection<Long> ids = userIds.stream()
+                .map(UserId::value)
+                .collect(java.util.stream.Collectors.toList());
+        
+        // R2dbcRepository의 findAllById 사용 (Iterable<ID> 파라미터)
+        return r2dbcRepository.findAllById(ids)
+                .map(userMapper::toDomain);
     }
 
 
