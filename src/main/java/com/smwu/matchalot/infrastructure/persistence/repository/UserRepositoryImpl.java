@@ -82,12 +82,13 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
 
+    @Override
     public Flux<User> findAll() {
         return r2dbcRepository.findAllByOrderByCreatedAtDesc()
                 .map(userMapper::toDomain);
     }
 
-
+    @Override
     public Flux<User> findByRole(UserRole role) {
         return r2dbcRepository.findByRole(role.name())
                 .map(userMapper::toDomain);
