@@ -93,6 +93,14 @@ jobs:
             # 새 컨테이너 실행 (docker-compose 활용)
             echo "=== $TARGET_ENV 환경에 새 컨테이너 실행 중 ==="
             
+            # .env 파일 확인
+            if [ -f /home/youkm0806/matchalot/backend/.env ]; then
+              echo ".env 파일 발견, 복사 중..."
+              cp /home/youkm0806/matchalot/backend/.env /home/youkm0806/matchalot/backend/deploy/.env
+            else
+              echo "경고: .env 파일을 찾을 수 없습니다."
+            fi
+            
             # deploy 디렉토리로 이동
             cd /home/youkm0806/matchalot/backend/deploy
             
