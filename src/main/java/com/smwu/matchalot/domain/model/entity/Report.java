@@ -25,6 +25,7 @@ public class Report {
         this(null, reporterId, reportedUserId, materialId, type, description,
                 ReportStatus.PENDING, null, LocalDateTime.now(), null);
     }
+    
 
     // 관리자 처리
     public Report resolve(String adminNote) {
