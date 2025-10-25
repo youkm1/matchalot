@@ -28,6 +28,7 @@ public class CookieAuthenticationFilter implements WebFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
 
+    
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
