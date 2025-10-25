@@ -109,12 +109,16 @@ jobs:
               --restart unless-stopped \
               $NETWORK_OPTION \
               -e SPRING_PROFILES_ACTIVE=prod \
-              -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/matchalot \
-              -e SPRING_DATASOURCE_USERNAME=matchalot \
-              -e SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e DB_HOST=postgres \
+              -e DB_PORT=5432 \
+              -e DB_NAME=matchalot \
+              -e DB_USERNAME=matchalot \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }} \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-              -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
-              -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+              -e GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              -e AZURE_STORAGE_KEY=${{ secrets.AZURE_STORAGE_KEY }} \
               matchalot:latest
             
             # 헬스체크 (최대 30회, 각 5초 간격)
