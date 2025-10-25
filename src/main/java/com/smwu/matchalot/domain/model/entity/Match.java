@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 
 import static com.smwu.matchalot.domain.model.vo.MatchStatus.ACCEPTED;
 
+
 @Getter
 @AllArgsConstructor
 public class Match {
