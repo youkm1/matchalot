@@ -45,7 +45,7 @@ public interface MatchR2dbcRepository extends R2dbcRepository<MatchEntity, Long>
     Flux<MatchEntity> findByMaterialIds(Long materialId1, Long materialId2);
 
     // 만료된 매칭
-    @Query("SELECT * FROM matches WHERE expires_at < :now AND status IN ('PENDING', 'ACCEPTED')")
+    @Query("SELECT * FROM matches WHERE expired_at < :now AND status IN ('PENDING', 'ACCEPTED')")
     Flux<MatchEntity> findExpiredMatches(LocalDateTime now);
 
     // 통계

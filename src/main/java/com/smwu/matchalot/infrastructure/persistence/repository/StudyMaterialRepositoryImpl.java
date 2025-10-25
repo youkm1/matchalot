@@ -5,6 +5,10 @@ import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.domain.repository.StudyMaterialRepository;
 import com.smwu.matchalot.infrastructure.persistence.StudyMaterialEntity;
 import com.smwu.matchalot.infrastructure.persistence.mapper.StudyMaterialMapper;
+import com.smwu.matchalot.web.dto.StudyMaterialSummaryResponse;
+import org.springframework.r2dbc.core.DatabaseClient;
+
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
@@ -18,6 +22,7 @@ import reactor.core.publisher.Mono;
 public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
     private final StudyMaterialR2dbcRepository r2dbcRepository;
     private final StudyMaterialMapper mapper;
+    private final DatabaseClient databaseClient;
 
     @Override
     public Mono<StudyMaterial> save(StudyMaterial studyMaterial) {
@@ -138,6 +143,150 @@ public class StudyMaterialRepositoryImpl implements StudyMaterialRepository {
         return r2dbcRepository.findBySubjectAndExamTypeAndStatus(
                         subject.name(), examType.type(), status.name())
                 .map(mapper::toDomain);
+    }
+
+    // JOIN 메서드들 구현 - N+1 문제 해결
+    @Override
+    public Flux<StudyMaterialSummaryResponse> findAllWithUploader() {
+        return databaseClient.sql("""
+                SELECT 
+                    m.id, m.uploader_id, m.title, m.subject, m.exam_type, 
+                    m.year, m.season, m.question_count, m.created_at, m.temp_pdf_data,
+                    u.trust_score
+                FROM study_material m
+                INNER JOIN users u ON m.uploader_id = u.id
+                WHERE m.status = 'APPROVED'
+                ORDER BY m.created_at DESC
+                """)
+                .map((row, metadata) -> StudyMaterialSummaryResponse.fromJoinResult(
+                        row.get("id", Long.class),
+                        row.get("uploader_id", Long.class),
+                        row.get("subject", String.class),
+                        row.get("exam_type", String.class),
+                        row.get("year", Integer.class),
+                        row.get("season", String.class),
+                        row.get("title", String.class),
+                        row.get("question_count", Integer.class),
+                        row.get("trust_score", Integer.class),
+                        row.get("created_at", LocalDateTime.class),
+                        row.get("temp_pdf_data", String.class)
+                ))
+                .all();
+    }
+
+    @Override
+    public Flux<StudyMaterialSummaryResponse> findAllWithUploaderForAdmin() {
+        return databaseClient.sql("""
+                SELECT 
+                    m.id, m.uploader_id, m.title, m.subject, m.exam_type, 
+                    m.year, m.season, m.question_count, m.created_at, m.temp_pdf_data,
+                    u.trust_score
+                FROM study_material m
+                INNER JOIN users u ON m.uploader_id = u.id
+                ORDER BY m.created_at DESC
+                """)
+                .map((row, metadata) -> StudyMaterialSummaryResponse.fromJoinResult(
+                        row.get("id", Long.class),
+                        row.get("uploader_id", Long.class),
+                        row.get("subject", String.class),
+                        row.get("exam_type", String.class),
+                        row.get("year", Integer.class),
+                        row.get("season", String.class),
+                        row.get("title", String.class),
+                        row.get("question_count", Integer.class),
+                        row.get("trust_score", Integer.class),
+                        row.get("created_at", LocalDateTime.class),
+                        row.get("temp_pdf_data", String.class)
+                ))
+                .all();
+    }
+
+    @Override
+    public Flux<StudyMaterialSummaryResponse> findBySubjectWithUploader(Subject subject) {
+        return databaseClient.sql("""
+                SELECT 
+                    m.id, m.uploader_id, m.title, m.subject, m.exam_type, 
+                    m.year, m.season, m.question_count, m.created_at, m.temp_pdf_data,
+                    u.trust_score
+                FROM study_material m
+                INNER JOIN users u ON m.uploader_id = u.id
+                WHERE m.subject = :subject AND m.status = 'APPROVED'
+                ORDER BY m.created_at DESC
+                """)
+                .bind("subject", subject.name())
+                .map((row, metadata) -> StudyMaterialSummaryResponse.fromJoinResult(
+                        row.get("id", Long.class),
+                        row.get("uploader_id", Long.class),
+                        row.get("subject", String.class),
+                        row.get("exam_type", String.class),
+                        row.get("year", Integer.class),
+                        row.get("season", String.class),
+                        row.get("title", String.class),
+                        row.get("question_count", Integer.class),
+                        row.get("trust_score", Integer.class),
+                        row.get("created_at", LocalDateTime.class),
+                        row.get("temp_pdf_data", String.class)
+                ))
+                .all();
+    }
+
+    @Override
+    public Flux<StudyMaterialSummaryResponse> findBySubjectAndExamTypeWithUploader(Subject subject, ExamType examType) {
+        return databaseClient.sql("""
+                SELECT 
+                    m.id, m.uploader_id, m.title, m.subject, m.exam_type, 
+                    m.year, m.season, m.question_count, m.created_at, m.temp_pdf_data,
+                    u.trust_score
+                FROM study_material m
+                INNER JOIN users u ON m.uploader_id = u.id
+                WHERE m.subject = :subject AND m.exam_type = :examType AND m.status = 'APPROVED'
+                ORDER BY m.created_at DESC
+                """)
+                .bind("subject", subject.name())
+                .bind("examType", examType.type())
+                .map((row, metadata) -> StudyMaterialSummaryResponse.fromJoinResult(
+                        row.get("id", Long.class),
+                        row.get("uploader_id", Long.class),
+                        row.get("subject", String.class),
+                        row.get("exam_type", String.class),
+                        row.get("year", Integer.class),
+                        row.get("season", String.class),
+                        row.get("title", String.class),
+                        row.get("question_count", Integer.class),
+                        row.get("trust_score", Integer.class),
+                        row.get("created_at", LocalDateTime.class),
+                        row.get("temp_pdf_data", String.class)
+                ))
+                .all();
+    }
+
+    @Override
+    public Flux<StudyMaterialSummaryResponse> findByUploaderIdWithUploader(UserId uploaderId) {
+        return databaseClient.sql("""
+                SELECT 
+                    m.id, m.uploader_id, m.title, m.subject, m.exam_type, 
+                    m.year, m.season, m.question_count, m.created_at, m.temp_pdf_data,
+                    u.trust_score
+                FROM study_material m
+                INNER JOIN users u ON m.uploader_id = u.id
+                WHERE m.uploader_id = :uploaderId
+                ORDER BY m.created_at DESC
+                """)
+                .bind("uploaderId", uploaderId.value())
+                .map((row, metadata) -> StudyMaterialSummaryResponse.fromJoinResult(
+                        row.get("id", Long.class),
+                        row.get("uploader_id", Long.class),
+                        row.get("subject", String.class),
+                        row.get("exam_type", String.class),
+                        row.get("year", Integer.class),
+                        row.get("season", String.class),
+                        row.get("title", String.class),
+                        row.get("question_count", Integer.class),
+                        row.get("trust_score", Integer.class),
+                        row.get("created_at", LocalDateTime.class),
+                        row.get("temp_pdf_data", String.class)
+                ))
+                .all();
     }
 
 }

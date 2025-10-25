@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Collection;
 import java.util.Set;
 
 @Service
@@ -58,6 +59,17 @@ public class UserService {
 
     public Mono<User> getUserById(UserId userId) {
         return userRepository.findById(userId);
+    }
+
+    public Flux<User> getUsersByIds(Collection<UserId> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Flux.empty();
+        }
+        return userRepository.findAllById(userIds)
+                .onErrorResume(ex -> {
+                    log.error("Failed to fetch users by IDs: {}", userIds, ex);
+                    return Flux.empty();
+                });
     }
 
     //등업

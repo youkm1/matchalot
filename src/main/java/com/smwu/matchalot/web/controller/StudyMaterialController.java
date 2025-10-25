@@ -4,6 +4,7 @@ import com.smwu.matchalot.application.service.MatchService;
 import com.smwu.matchalot.application.service.StudyMaterialService;
 import com.smwu.matchalot.application.service.UserService;
 import com.smwu.matchalot.domain.repository.MatchRepository;
+import com.smwu.matchalot.domain.repository.StudyMaterialRepository;
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
 import com.smwu.matchalot.web.dto.*;
@@ -19,6 +20,8 @@ import reactor.core.publisher.Mono;
 
 import jakarta.validation.Valid;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/study-materials")
@@ -30,6 +33,7 @@ public class StudyMaterialController {
     private final UserService userService;
     private final MatchService matchService;
     private final MatchRepository matchRepository;
+    private final StudyMaterialRepository studyMaterialRepository;
 
     @PostMapping
     public Mono<ResponseEntity<StudyMaterialResponse>> uploadStudyMaterial(
@@ -77,22 +81,17 @@ public class StudyMaterialController {
             Mono.just(false);
 
         return isAdminCheck.flatMapMany(isAdmin -> {
+            // JOIN 쿼리로 N+1 문제 해결 (1번 쿼리)
             if (subject != null && examType != null) {
-                // 과목과 시험 유형으로 필터링
-                return studyMaterialService.getStudyMaterialsBySubjectAndExamType(
-                                Subject.of(subject), ExamType.of(examType))
-                        .flatMap(this::toSummaryResponse);
+                return studyMaterialRepository.findBySubjectAndExamTypeWithUploader(
+                        Subject.of(subject), ExamType.of(examType));
             } else if (subject != null) {
-                // 과목으로만 필터링 
-                return studyMaterialService.getStudyMaterialsBySubject(Subject.of(subject))
-                        .flatMap(this::toSummaryResponse);
+                return studyMaterialRepository.findBySubjectWithUploader(Subject.of(subject));
             } else {
-                // 모든 족보 조회 - 관리자는 모든 상태, 일반 사용자는 승인된 것만
-                return isAdmin ? 
-                    studyMaterialService.getAllStudyMaterialsForAdmin()
-                        .flatMap(this::toSummaryResponse) :
-                    studyMaterialService.getAllStudyMaterials()
-                        .flatMap(this::toSummaryResponse);
+                // 관리자는 모든 상태, 일반 사용자는 승인된 것만
+                return isAdmin ?
+                    studyMaterialRepository.findAllWithUploaderForAdmin() :
+                    studyMaterialRepository.findAllWithUploader();
             }
         });
     }
@@ -163,8 +162,10 @@ public class StudyMaterialController {
         Email userEmail = Email.of(email);
 
         return userService.getUserByEmail(userEmail)
-                .flatMapMany(user -> studyMaterialService.getMyStudyMaterials(user.getId()))
-                .flatMap(this::toSummaryResponse);
+                .flatMapMany(user -> {
+                    // JOIN 쿼리로 N+1 문제 해결 (1번 쿼리)
+                    return studyMaterialRepository.findByUploaderIdWithUploader(user.getId());
+                });
     }
 
     @DeleteMapping("/{materialId}")
@@ -226,12 +227,32 @@ public class StudyMaterialController {
         )));
     }
 
-    private Mono<StudyMaterialSummaryResponse> toSummaryResponse(StudyMaterial studyMaterial) {
-        return userService.getUserById(studyMaterial.getUploaderId())
-                .map(uploader -> StudyMaterialSummaryResponse.from(
-                        studyMaterial,
-                        uploader.getTrustScore().value()))
-                .switchIfEmpty(Mono.just(StudyMaterialSummaryResponse.from(studyMaterial, 0)));
+    // Batch processing method for N+1 optimization
+    private Flux<StudyMaterialSummaryResponse> toSummaryResponse(Flux<StudyMaterial> materialsFlux) {
+        return materialsFlux
+                .collectList()
+                .flatMapMany(materials -> {
+                    if (materials.isEmpty()) {
+                        return Flux.empty();
+                    }
+                    
+                    // Extract all uploader IDs
+                    Set<UserId> uploaderIds = materials.stream()
+                            .map(StudyMaterial::getUploaderId)
+                            .collect(Collectors.toSet());
+                    
+                    // Batch fetch all users (1 query instead of N)
+                    return userService.getUsersByIds(uploaderIds)
+                            .collectMap(com.smwu.matchalot.domain.model.entity.User::getId)  // Map<UserId, User>
+                            .flatMapMany(userMap -> 
+                                Flux.fromIterable(materials)
+                                    .map(material -> {
+                                        com.smwu.matchalot.domain.model.entity.User uploader = userMap.get(material.getUploaderId());
+                                        int trustScore = uploader != null ? uploader.getTrustScore().value() : 0;
+                                        return StudyMaterialSummaryResponse.from(material, trustScore);
+                                    })
+                            );
+                });
     }
 
     private Mono<StudyMaterialResponse> toFullResponse(StudyMaterial studyMaterial) {

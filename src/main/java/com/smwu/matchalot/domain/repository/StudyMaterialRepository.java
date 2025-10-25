@@ -2,6 +2,7 @@ package com.smwu.matchalot.domain.repository;
 
 import com.smwu.matchalot.domain.model.entity.StudyMaterial;
 import com.smwu.matchalot.domain.model.vo.*;
+import com.smwu.matchalot.web.dto.StudyMaterialSummaryResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -26,4 +27,11 @@ public interface StudyMaterialRepository {
     Flux<StudyMaterial> findAllApproved();
     Flux<StudyMaterial> findBySubjectAndStatus(Subject subject, MaterialStatus status);
     Flux<StudyMaterial> findBySubjectAndExamTypeAndStatus(Subject subject, ExamType examType, MaterialStatus status);
+    
+    // JOIN 메서드들 - N+1 문제 해결
+    Flux<StudyMaterialSummaryResponse> findAllWithUploader();
+    Flux<StudyMaterialSummaryResponse> findAllWithUploaderForAdmin();
+    Flux<StudyMaterialSummaryResponse> findBySubjectWithUploader(Subject subject);
+    Flux<StudyMaterialSummaryResponse> findBySubjectAndExamTypeWithUploader(Subject subject, ExamType examType);
+    Flux<StudyMaterialSummaryResponse> findByUploaderIdWithUploader(UserId uploaderId);
 }

@@ -1,93 +1,184 @@
-name: Deploy 
+name: Blue-Green Deploy
 on:
   push:
     branches: [ main ]
-    paths:  
+    paths:
       - 'src/**'
       - 'build.gradle'
       - 'Dockerfile'
-      - 'settings.gradle'  
+      - 'settings.gradle'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 
-      
-    - name: Deploy to Azure VM
-      uses: appleboy/ssh-action@v0.1.10
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        port: 22
-        timeout: 300s
-        script: |
-          echo "=== 코드 업데이트 시작 ==="
-          cd /home/youkm0806/matchalot/backend
-          git fetch origin main
-          git reset --hard origin/main
-          git clean -fd 
-          
-          echo "=== Docker 컨테이너 재배포 시작 ==="
-          cd ../devops
-          
-          # 기존 백엔드 컨테이너 완전 정리
-          echo "기존 컨테이너 중지 및 삭제 중..."
-          docker-compose stop backend 2>/dev/null || true
-          docker-compose rm -f backend 2>/dev/null || true
-          
-          # 기존 이미지도 삭제하여 완전 새로 빌드
-          echo "기존 이미지 삭제 중..."
-          docker rmi devops_backend 2>/dev/null || true
-          docker rmi devops-backend 2>/dev/null || true
-          docker rmi $(docker images | grep matchalot | awk '{print $3}') 2>/dev/null || true
-          
-          echo "새로운 컨테이너 빌드 및 시작 중..."
-          # Docker 컨테이너 내부에서 Gradle 빌드가 실행됨 (Java 호스트 설치 불필요)
-          docker-compose up --build -d backend
-          
-          echo "=== 컨테이너 시작 대기 (60초) ==="
-          sleep 60
-          
-          echo "=== 컨테이너 상태 확인 ==="
-          if docker-compose ps backend | grep -q "Up"; then
-            echo "백엔드 컨테이너가 정상적으로 실행 중"
-          else
-            echo "백엔드 컨테이너 실행 실패!"
-            echo "컨테이너 로그:"
-            docker-compose logs backend --tail 100
-            echo "컨테이너 상태:"
-            docker-compose ps -a
-            exit 1
-          fi
-          
-          echo "=== API 헬스체크 시작 ==="
-          # 10회 재시도, 각 15초 간격
-          for attempt in {1..10}; do
-            echo "헬스체크 시도 $attempt/10..."
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Blue-Green Deploy to Azure VM
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          timeout: 600s
+          script: |
+            echo "=== Blue-Green 배포 시작 ==="
             
-            if curl -f -s --max-time 10 http://localhost:8080/actuator/health > /dev/null 2>&1; then
-              echo "배포 성공! API가 정상 응답 "
-              echo "최종 상태:"
-              docker-compose ps backend
-              echo "메모리 사용량:"
-              docker stats --no-stream backend 2>/dev/null || true
-              exit 0
+            # 프로젝트 디렉토리로 이동
+            cd /home/youkm0806/matchalot/backend
+            
+            # 코드 업데이트
+            echo "=== 코드 업데이트 중 ==="
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+            
+            # 현재 활성 환경 확인
+            echo "=== 현재 활성 환경 확인 중 ==="
+            if docker ps --format 'table {{.Names}}' | grep -q "matchalot-blue"; then
+              if docker ps --format 'table {{.Names}}' | grep -q "matchalot-green"; then
+                # 둘 다 실행 중이면 nginx 설정 확인
+                if grep -q "server 127.0.0.1:8080 weight=1" /etc/nginx/nginx.conf 2>/dev/null; then
+                  CURRENT_ENV="blue"
+                  CURRENT_PORT=8080
+                  TARGET_ENV="green"  
+                  TARGET_PORT=8081
+                else
+                  CURRENT_ENV="green"
+                  CURRENT_PORT=8081
+                  TARGET_ENV="blue"
+                  TARGET_PORT=8080
+                fi
+              else
+                # blue만 실행 중
+                CURRENT_ENV="blue"
+                CURRENT_PORT=8080
+                TARGET_ENV="green"
+                TARGET_PORT=8081
+              fi
+            elif docker ps --format 'table {{.Names}}' | grep -q "matchalot-green"; then
+              # green만 실행 중
+              CURRENT_ENV="green"
+              CURRENT_PORT=8081
+              TARGET_ENV="blue"
+              TARGET_PORT=8080
             else
-              echo "API 응답 없음, 15초 후 재시도..."
-              if [ $attempt -eq 10 ]; then
-                echo "배포 실패 - API 헬스체크 최종 실패"
-                echo "최종 로그 (최근 50줄):"
-                docker-compose logs backend --tail 50
-                echo "컨테이너 상태:"
-                docker-compose ps backend
-                echo "포트 확인:"
-                netstat -tlnp | grep 8080 || true
+              # 아무것도 실행 중이지 않으면 blue로 시작
+              CURRENT_ENV="none"
+              TARGET_ENV="blue"
+              TARGET_PORT=8080
+            fi
+            
+            echo "현재 활성: $CURRENT_ENV | 배포 대상: $TARGET_ENV (포트: $TARGET_PORT)"
+            
+            # 새 이미지 빌드
+            echo "=== Docker 이미지 빌드 중 ==="
+            docker build -t matchalot:latest /home/youkm0806/matchalot/backend
+            
+            # 기존 타겟 컨테이너 정리
+            echo "=== 기존 $TARGET_ENV 컨테이너 정리 중 ==="
+            docker stop matchalot-$TARGET_ENV 2>/dev/null || true
+            docker rm matchalot-$TARGET_ENV 2>/dev/null || true
+            
+            # 새 컨테이너 실행
+            echo "=== $TARGET_ENV 환경에 새 컨테이너 실행 중 ==="
+            docker run -d \
+              --name matchalot-$TARGET_ENV \
+              -p $TARGET_PORT:8080 \
+              --restart unless-stopped \
+              --network devops_app-network \
+              -e SPRING_PROFILES_ACTIVE=prod \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/matchalot \
+              -e SPRING_DATASOURCE_USERNAME=matchalot \
+              -e SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+              -e SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              matchalot:latest
+            
+            # 헬스체크 (최대 30회, 각 5초 간격)
+            echo "=== $TARGET_ENV 환경 헬스체크 중 ==="
+            for i in {1..30}; do
+              echo "헬스체크 시도 $i/30..."
+              if curl -f -s http://localhost:$TARGET_PORT/actuator/health > /dev/null 2>&1; then
+                echo "$TARGET_ENV 환경 준비 완료!"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "$TARGET_ENV 환경 헬스체크 실패!"
+                docker logs matchalot-$TARGET_ENV --tail 50
+                docker stop matchalot-$TARGET_ENV
+                docker rm matchalot-$TARGET_ENV
                 exit 1
               fi
-              sleep 15
+              sleep 5
+            done
+            
+            # nginx 설정 업데이트 및 트래픽 전환
+            if [ "$CURRENT_ENV" != "none" ]; then
+              echo "=== nginx 트래픽 전환 중 ==="
+            
+              # nginx 설정 백업
+              sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
+            
+              # upstream 설정 변경
+              if [ "$TARGET_ENV" = "green" ]; then
+                # Blue -> Green 전환
+                sudo sed -i 's/server 127.0.0.1:8080 weight=1;/server 127.0.0.1:8080 weight=0;/' /etc/nginx/nginx.conf
+                sudo sed -i 's/server 127.0.0.1:8081 weight=0;/server 127.0.0.1:8081 weight=1;/' /etc/nginx/nginx.conf
+                # backend upstream도 변경
+                sudo sed -i 's/server backend:8080;/server 127.0.0.1:8081;/' /etc/nginx/nginx.conf
+              else
+                # Green -> Blue 전환
+                sudo sed -i 's/server 127.0.0.1:8081 weight=1;/server 127.0.0.1:8081 weight=0;/' /etc/nginx/nginx.conf
+                sudo sed -i 's/server 127.0.0.1:8080 weight=0;/server 127.0.0.1:8080 weight=1;/' /etc/nginx/nginx.conf
+                # backend upstream도 변경
+                sudo sed -i 's/server 127.0.0.1:8081;/server backend:8080;/' /etc/nginx/nginx.conf
+              fi
+            
+              # nginx 설정 테스트 및 리로드
+              if sudo nginx -t; then
+                sudo nginx -s reload
+                echo "nginx 트래픽 전환 완료!"
+              else
+                echo "nginx 설정 오류! 롤백 중..."
+                sudo cp /etc/nginx/nginx.conf.backup /etc/nginx/nginx.conf
+                sudo nginx -s reload
+                exit 1
+              fi
+            
+              # 트래픽 전환 확인
+              sleep 5
+              if curl -f -s https://api.match-a-lot.store/actuator/health > /dev/null 2>&1; then
+                echo "=== 배포 성공! ==="
+                echo "활성 환경: $TARGET_ENV (포트: $TARGET_PORT)"
+            
+                # 기존 환경 정리 (1분 후)
+                echo "1분 후 기존 $CURRENT_ENV 환경 정리 예정..."
+                (sleep 60 && \
+                  docker stop matchalot-$CURRENT_ENV 2>/dev/null && \
+                  docker rm matchalot-$CURRENT_ENV 2>/dev/null && \
+                  echo "기존 $CURRENT_ENV 환경 정리 완료" && \
+                  # 오래된 이미지 정리
+                  docker image prune -f && \
+                  # <none> 태그 이미지 정리
+                  docker rmi $(docker images -f "dangling=true" -q) 2>/dev/null || true && \
+                  echo "오래된 이미지 정리 완료") &
+            
+              else
+                echo "외부 헬스체크 실패! 롤백이 필요할 수 있습니다."
+                exit 1
+              fi
+            else
+              echo "=== 첫 배포 완료 ==="
+              echo "활성 환경: $TARGET_ENV (포트: $TARGET_PORT)"
             fi
-          done
+            
+            # 최종 상태 출력
+            echo "=== 최종 상태 ==="
+            docker ps --filter "name=matchalot" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo "메모리 사용량:"
+            docker stats --no-stream --filter "name=matchalot"
