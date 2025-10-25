@@ -83,13 +83,31 @@ jobs:
             docker stop matchalot-$TARGET_ENV 2>/dev/null || true
             docker rm matchalot-$TARGET_ENV 2>/dev/null || true
             
+            # 기존 matchalot-backend 컨테이너 확인 및 정리 (첫 배포시)
+            if [ "$CURRENT_ENV" = "none" ]; then
+              echo "=== 기존 matchalot-backend 컨테이너 정리 중 ==="
+              docker stop matchalot-backend 2>/dev/null || true
+              docker rm matchalot-backend 2>/dev/null || true
+            fi
+            
             # 새 컨테이너 실행
             echo "=== $TARGET_ENV 환경에 새 컨테이너 실행 중 ==="
+            
+            # 네트워크 확인 및 연결 (기존 docker-compose 네트워크 사용)
+            NETWORK_NAME=$(docker network ls --format "{{.Name}}" | grep -E "(devops|app)" | head -1)
+            if [ -z "$NETWORK_NAME" ]; then
+              echo "네트워크를 찾을 수 없어 기본 네트워크 사용"
+              NETWORK_OPTION=""
+            else
+              echo "네트워크 사용: $NETWORK_NAME"
+              NETWORK_OPTION="--network $NETWORK_NAME"
+            fi
+            
             docker run -d \
               --name matchalot-$TARGET_ENV \
               -p $TARGET_PORT:8080 \
               --restart unless-stopped \
-              --network devops_app-network \
+              $NETWORK_OPTION \
               -e SPRING_PROFILES_ACTIVE=prod \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/matchalot \
               -e SPRING_DATASOURCE_USERNAME=matchalot \
@@ -181,4 +199,4 @@ jobs:
             echo "=== 최종 상태 ==="
             docker ps --filter "name=matchalot" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             echo "메모리 사용량:"
-            docker stats --no-stream --filter "name=matchalot"
+            docker stats --no-stream $(docker ps --filter "name=matchalot" --format "{{.Names}}" | tr '\n' ' ')
