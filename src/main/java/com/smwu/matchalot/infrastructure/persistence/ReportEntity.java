@@ -17,7 +17,7 @@ public class ReportEntity extends BaseEntity {
     private Long reportedUserId;
 
     @Column("material_id")
-    private Long materialId;  // nullable
+    private Long materialId;  
 
     @Column("type")
     private String type;
