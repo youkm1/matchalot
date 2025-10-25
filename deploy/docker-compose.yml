@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  app:
+  backend:
     image: matchalot:latest
-    container_name: matchalot-app
+    container_name: matchalot-backend
     ports:
       - "8080:8080"
     environment:
