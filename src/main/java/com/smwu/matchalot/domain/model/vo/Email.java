@@ -7,7 +7,7 @@ public record Email(String value) {
         }
 
         if (!value.endsWith("@sookmyung.ac.kr")) {
-            throw new IllegalArgumentException("이메일는 숙명대학교 이메일만 사용 가능합니다.");
+            throw new IllegalArgumentException("숙명대학교 이메일만 사용 가능합니다.");
         }
     }
 
