@@ -126,9 +126,3 @@ management:
       export:
         enabled: true
 
-azure:
-  storage:
-    account-name: matchalotpdf
-    account-key: ${AZURE_STORAGE_KEY}
-    container-name: study-materials
-    endpoint: https://matchalotstorage.blob.core.windows.net

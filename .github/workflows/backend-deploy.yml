@@ -90,25 +90,35 @@ jobs:
               docker rm matchalot-backend 2>/dev/null || true
             fi
             
-            # 새 컨테이너 실행 (docker-compose 활용)
+            # 새 컨테이너 실행
             echo "=== $TARGET_ENV 환경에 새 컨테이너 실행 중 ==="
             
-            # .env 파일 확인
-            if [ -f /home/youkm0806/matchalot/backend/.env ]; then
-              echo ".env 파일 발견, 복사 중..."
-              cp /home/youkm0806/matchalot/backend/.env /home/youkm0806/matchalot/backend/deploy/.env
+            # 네트워크 확인 및 연결 (기존 docker-compose 네트워크 사용)
+            NETWORK_NAME=$(docker network ls --format "{{.Name}}" | grep -E "(devops|app|matchalot)" | head -1)
+            if [ -z "$NETWORK_NAME" ]; then
+              echo "네트워크를 찾을 수 없어 기본 네트워크 사용"
+              NETWORK_OPTION=""
             else
-              echo "경고: .env 파일을 찾을 수 없습니다."
+              echo "네트워크 사용: $NETWORK_NAME"
+              NETWORK_OPTION="--network $NETWORK_NAME"
             fi
             
-            # deploy 디렉토리로 이동
-            cd /home/youkm0806/matchalot/backend/deploy
-            
-            # 임시 docker-compose 파일 생성 (포트만 변경)
-            sed "s/matchalot-app/matchalot-$TARGET_ENV/g; s/8080:8080/$TARGET_PORT:8080/g" docker-compose.yml > docker-compose-$TARGET_ENV.yml
-            
-            # docker-compose로 컨테이너 실행
-            docker-compose -f docker-compose-$TARGET_ENV.yml up -d
+            docker run -d \
+              --name matchalot-$TARGET_ENV \
+              -p $TARGET_PORT:8080 \
+              --restart unless-stopped \
+              $NETWORK_OPTION \
+              -e SPRING_PROFILES_ACTIVE=prod \
+              -e DB_HOST=${{ secrets.DB_HOST }} \
+              -e DB_PORT=${{ secrets.DB_PORT }} \
+              -e DB_NAME=${{ secrets.DB_NAME }} \
+              -e DB_USERNAME=${{ secrets.DB_USERNAME }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }} \
+              -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+              -e GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              matchalot:latest
             
             # 헬스체크 (최대 30회, 각 5초 간격)
             echo "=== $TARGET_ENV 환경 헬스체크 중 ==="
