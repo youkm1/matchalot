@@ -37,6 +37,7 @@ public class OAuth2JwtAuthenticationSuccessHandler implements ServerAuthenticati
         ServerWebExchange exchange = webFilterExchange.getExchange();
         OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
 
+        
         String email = oauth2User.getAttribute("email");
         String name = oauth2User.getAttribute("name");
 
