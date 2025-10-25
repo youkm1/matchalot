@@ -140,28 +140,33 @@ jobs:
             if [ "$CURRENT_ENV" != "none" ]; then
               echo "=== nginx 트래픽 전환 중 ==="
             
-              # nginx 설정 백업
-              sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
+              # nginx 설정 백업 (docker 컨테이너 내부에서)
+              docker exec matchalot-nginx cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
+              cp nginx-ssl.conf nginx-ssl.conf.backup
             
-              # upstream 설정 변경
+              # 로컬 설정 파일 변경
               if [ "$TARGET_ENV" = "green" ]; then
                 # Blue -> Green 전환
-                sudo sed -i 's/server matchalot-blue:8080;/server matchalot-green:8080;/' /etc/nginx/nginx.conf
-                sudo sed -i 's/server matchalot-backend:8080;/server matchalot-green:8080;/' /etc/nginx/nginx.conf
+                sed -i 's/server matchalot-blue:8080;/server matchalot-green:8080;/' nginx-ssl.conf
+                sed -i 's/server backend:8080;/server matchalot-green:8080;/' nginx-ssl.conf
               else
                 # Green -> Blue 전환  
-                sudo sed -i 's/server matchalot-green:8080;/server matchalot-blue:8080;/' /etc/nginx/nginx.conf
-                sudo sed -i 's/server matchalot-backend:8080;/server matchalot-blue:8080;/' /etc/nginx/nginx.conf
+                sed -i 's/server matchalot-green:8080;/server matchalot-blue:8080;/' nginx-ssl.conf
+                sed -i 's/server backend:8080;/server matchalot-blue:8080;/' nginx-ssl.conf
               fi
+              
+              # 변경된 설정을 컨테이너에 복사
+              docker cp nginx-ssl.conf matchalot-nginx:/etc/nginx/nginx.conf
             
               # nginx 설정 테스트 및 리로드
-              if sudo nginx -t; then
-                sudo nginx -s reload
+              if docker exec matchalot-nginx nginx -t; then
+                docker exec matchalot-nginx nginx -s reload
                 echo "nginx 트래픽 전환 완료!"
               else
                 echo "nginx 설정 오류! 롤백 중..."
-                sudo cp /etc/nginx/nginx.conf.backup /etc/nginx/nginx.conf
-                sudo nginx -s reload
+                cp nginx-ssl.conf.backup nginx-ssl.conf
+                docker cp nginx-ssl.conf matchalot-nginx:/etc/nginx/nginx.conf
+                docker exec matchalot-nginx nginx -s reload
                 exit 1
               fi
             
