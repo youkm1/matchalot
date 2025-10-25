@@ -78,16 +78,22 @@ jobs:
             echo "=== Docker 이미지 빌드 중 ==="
             docker build -t matchalot:latest /home/youkm0806/matchalot/backend
             
-            # 기존 타겟 컨테이너 정리
-            echo "=== 기존 $TARGET_ENV 컨테이너 정리 중 ==="
+            # 기존 컨테이너들 정리
+            echo "=== 기존 컨테이너들 정리 중 ==="
             docker stop matchalot-$TARGET_ENV 2>/dev/null || true
             docker rm matchalot-$TARGET_ENV 2>/dev/null || true
             
-            # 기존 matchalot-backend 컨테이너 확인 및 정리 (첫 배포시)
+            # 첫 배포시 기존 모든 컨테이너 정리
             if [ "$CURRENT_ENV" = "none" ]; then
-              echo "=== 기존 matchalot-backend 컨테이너 정리 중 ==="
+              echo "=== 기존 모든 matchalot 컨테이너 정리 중 ==="
               docker stop matchalot-backend 2>/dev/null || true
               docker rm matchalot-backend 2>/dev/null || true
+              docker stop matchalot-nginx 2>/dev/null || true
+              docker rm matchalot-nginx 2>/dev/null || true
+              docker stop matchalot-prometheus 2>/dev/null || true
+              docker rm matchalot-prometheus 2>/dev/null || true
+              docker stop matchalot-grafana 2>/dev/null || true
+              docker rm matchalot-grafana 2>/dev/null || true
             fi
             
             # 새 컨테이너 실행 (docker-compose 활용)

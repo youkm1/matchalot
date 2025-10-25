@@ -36,6 +36,44 @@ services:
     networks:
       - matchalot-network
 
+  nginx:
+    image: nginx:alpine
+    container_name: matchalot-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx-ssl.conf:/etc/nginx/nginx.conf
+      - /etc/letsencrypt:/etc/letsencrypt
+      - /var/www/certbot:/var/www/certbot
+    restart: unless-stopped
+    networks:
+      - matchalot-network
+    depends_on:
+      - backend
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: matchalot-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../monitoring/prometheus:/etc/prometheus
+    restart: unless-stopped
+    networks:
+      - matchalot-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: matchalot-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../monitoring/grafana:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - matchalot-network
+
 networks:
   matchalot-network:
     driver: bridge
