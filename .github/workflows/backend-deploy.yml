@@ -136,21 +136,25 @@ jobs:
               --restart unless-stopped \
               youkm1/matchalot-vm:latest
             
-            # 헬스체크
+            # 헬스체크 (최대 60회, 각 3초 = 3분)
             echo "=== 헬스체크 중 ==="
-            for i in {1..30}; do
+            for i in {1..60}; do
+              if [ $((i % 10)) -eq 0 ]; then
+                echo "헬스체크 진행 중... ($i/60)"
+              fi
               if curl -f -s http://localhost:$TARGET_PORT/actuator/health > /dev/null 2>&1; then
-                echo "$TARGET_ENV 환경 준비 완료!"
+                echo "$TARGET_ENV 환경 준비 완료! (${i}회 시도)"
                 break
               fi
-              if [ $i -eq 30 ]; then
-                echo "헬스체크 실패!"
-                docker logs matchalot-$TARGET_ENV --tail 50
+              if [ $i -eq 60 ]; then
+                echo "헬스체크 실패! (3분 초과)"
+                echo "=== 최근 로그 ==="
+                docker logs matchalot-$TARGET_ENV --tail 100
                 docker stop matchalot-$TARGET_ENV
                 docker rm matchalot-$TARGET_ENV
                 exit 1
               fi
-              sleep 2
+              sleep 3
             done
             
             # nginx 업데이트 및 트래픽 전환

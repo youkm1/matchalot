@@ -19,11 +19,11 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# JVM 메모리 최적화 및 실행
+# JVM 메모리 최적화 및 실행 (저사양 서버용)
 ENTRYPOINT ["java", \
+    "-Xms128m", \
+    "-Xmx256m", \
     "-XX:+UseContainerSupport", \
-    "-XX:MaxRAMPercentage=75.0", \
-    "-XX:InitialRAMPercentage=50.0", \
     "-Djava.security.egd=file:/dev/./urandom", \
     "-Dspring.profiles.active=prod", \
     "-Duser.timezone=Asia/Seoul", \
