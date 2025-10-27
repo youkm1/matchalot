@@ -98,6 +98,21 @@ jobs:
             
             echo "현재 활성: $CURRENT_ENV | 배포 대상: $TARGET_ENV (포트: $TARGET_PORT)"
             
+            # 네트워크 확인 및 생성
+            echo "=== Docker 네트워크 설정 ==="
+            if docker network ls | grep -q "devops_matchalot-network"; then
+              NETWORK_NAME="devops_matchalot-network"
+            elif docker network ls | grep -q "matchalot_matchalot-network"; then
+              NETWORK_NAME="matchalot_matchalot-network"
+            elif docker network ls | grep -q "matchalot-network"; then
+              NETWORK_NAME="matchalot-network"
+            else
+              echo "네트워크 생성 중..."
+              docker network create matchalot-network
+              NETWORK_NAME="matchalot-network"
+            fi
+            echo "사용할 네트워크: $NETWORK_NAME"
+            
             # 기존 타겟 컨테이너 정리
             docker stop matchalot-$TARGET_ENV 2>/dev/null || true
             docker rm matchalot-$TARGET_ENV 2>/dev/null || true
@@ -107,7 +122,7 @@ jobs:
             docker run -d \
               --name matchalot-$TARGET_ENV \
               -p $TARGET_PORT:8080 \
-              --network matchalot-network \
+              --network $NETWORK_NAME \
               -e DB_HOST=${{ secrets.DB_HOST }} \
               -e DB_PORT=${{ secrets.DB_PORT }} \
               -e DB_NAME=${{ secrets.DB_NAME }} \
@@ -148,13 +163,12 @@ jobs:
             docker stop matchalot-nginx 2>/dev/null || true
             docker rm matchalot-nginx 2>/dev/null || true
             
-            # 네트워크 생성 (없으면)
-            docker network create matchalot-network 2>/dev/null || true
+            # 네트워크는 위에서 이미 설정됨
             
             # nginx 컨테이너 재시작 (새 설정으로)
             docker run -d \
               --name matchalot-nginx \
-              --network matchalot-network \
+              --network $NETWORK_NAME \
               -p 80:80 \
               -p 443:443 \
               -v /etc/letsencrypt:/etc/letsencrypt:ro \
