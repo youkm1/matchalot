@@ -51,6 +51,7 @@ public class NotificationRepositoryImpl implements NotificationRepository {
                     notification.getUserId().value(), notification.getType()));
     }
 
+    
     private Mono<Notification> update(Notification notification) {
         String sql = """
             UPDATE notifications 
