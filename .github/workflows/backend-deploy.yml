@@ -78,7 +78,7 @@ jobs:
             
             # Docker Hub에서 최신 이미지 Pull
             echo "=== Docker 이미지 Pull 중 ==="
-            docker pull ${{ secrets.DOCKER_USERNAME }}/matchalot-vm:latest
+            docker pull youkm1/matchalot-vm:latest
             
             # 현재 활성 환경 확인
             echo "=== 현재 활성 환경 확인 중 ==="
@@ -119,7 +119,7 @@ jobs:
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               -e SPRING_PROFILES_ACTIVE=prod \
               --restart unless-stopped \
-              ${{ secrets.DOCKER_USERNAME }}/matchalot-vm:latest
+              youkm1/matchalot-vm:latest
             
             # 헬스체크
             echo "=== 헬스체크 중 ==="
@@ -142,7 +142,7 @@ jobs:
             echo "=== nginx 업데이트 중 ==="
             
             # nginx 이미지 pull
-            docker pull ${{ secrets.DOCKER_USERNAME }}/matchalot-vm-nginx:latest
+            docker pull youkm1/matchalot-vm-nginx:latest
             
             # 새로운 nginx 설정으로 업데이트
             docker stop matchalot-nginx 2>/dev/null || true
@@ -161,7 +161,7 @@ jobs:
               -v /var/www/certbot:/var/www/certbot \
               -e TARGET_ENV=$TARGET_ENV \
               --restart unless-stopped \
-              ${{ secrets.DOCKER_USERNAME }}/matchalot-vm-nginx:latest
+              youkm1/matchalot-vm-nginx:latest
             
             # nginx 내부에서 설정 변경
             sleep 5
