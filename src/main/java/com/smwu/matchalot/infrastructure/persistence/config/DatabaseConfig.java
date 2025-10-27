@@ -28,6 +28,7 @@ public class DatabaseConfig  {
         return new R2dbcTransactionManager(connectionFactory);
     }
     
+    
     @Bean
     public TransactionalOperator transactionalOperator(ReactiveTransactionManager transactionManager) {
         return TransactionalOperator.create(transactionManager);
