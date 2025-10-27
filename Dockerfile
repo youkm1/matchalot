@@ -1,47 +1,30 @@
-FROM eclipse-temurin:17-jdk-alpine AS build
-WORKDIR /workspace/app
-
-# 네트워크 설정 및 필요 패키지 설치
-RUN apk add --no-cache curl wget
-
-# Gradle Wrapper와 설정 파일들 복사
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle settings.gradle ./
-
-
-RUN chmod +x ./gradlew
-
-# 네트워크 타임아웃을 늘림
-RUN ./gradlew dependencies --no-daemon \
-    -Dorg.gradle.internal.http.connectionTimeout=600000 \
-    -Dorg.gradle.internal.http.socketTimeout=600000 \
-    --stacktrace || \
-    (echo "재시도..." && ./gradlew dependencies --no-daemon \
-    -Dorg.gradle.internal.http.connectionTimeout=600000 \
-    -Dorg.gradle.internal.http.socketTimeout=600000)
-
-# 소스 코드 복사 및 빌드
-COPY src src
-RUN ./gradlew clean build -x test --no-daemon
-
-# 실행 스테이지 - JRE 사용
+# GitHub Actions에서 미리 빌드한 JAR 사용
 FROM eclipse-temurin:17-jre-alpine
+
+# 필요한 패키지 설치 및 시간대 설정
 RUN apk add --no-cache curl tzdata && \
     cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime && \
     echo "Asia/Seoul" > /etc/timezone && \
     apk del tzdata
 
 WORKDIR /app
-COPY --from=build /workspace/app/build/libs/*.jar app.jar
+
+# 빌드 인자로 JAR 파일 경로 받기
+ARG JAR_FILE=build/libs/*.jar
+COPY ${JAR_FILE} app.jar
 
 EXPOSE 8080
+
+# 헬스체크
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
+# JVM 메모리 최적화 및 실행
 ENTRYPOINT ["java", \
-    "-Xms512m", \
-    "-Xmx1024m", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-XX:InitialRAMPercentage=50.0", \
+    "-Djava.security.egd=file:/dev/./urandom", \
     "-Dspring.profiles.active=prod", \
     "-Duser.timezone=Asia/Seoul", \
     "-jar", "app.jar"]

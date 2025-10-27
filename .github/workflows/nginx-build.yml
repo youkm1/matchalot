@@ -1,0 +1,39 @@
+name: Build Nginx Image
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'deploy/nginx-ssl.conf'
+      - 'deploy/nginx.Dockerfile'
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  build-nginx:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./deploy
+          file: ./deploy/nginx.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/matchalot-vm-nginx:latest
+            ${{ secrets.DOCKER_USERNAME }}/matchalot-vm-nginx:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

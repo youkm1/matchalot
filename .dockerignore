@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Gradle
+.gradle
+gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea
+*.iml
+*.ipr
+*.iws
+out/
+
+# Build artifacts (GitHub Actions에서 빌드)
+# build/ 디렉토리는 JAR 파일 복사를 위해 제외하지 않음
+
+# Docs
+*.md
+docs/
+
+# Logs
+*.log
+
+# Test
+src/test/
+
+# GitHub
+.github/
+
+# Deploy scripts
+deploy/
+devops/
